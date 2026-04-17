@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HKLS Baustellenmanager – Klingler</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f5f5f3;--bg3:#eeede8;--tx:#1a1a18;--tx2:#6b6b67;--tx3:#9e9e9a;
+  --bd:rgba(0,0,0,0.1);--bd2:rgba(0,0,0,0.2);
+  --blue:#185FA5;--blue-l:#E6F1FB;--blue-t:#0C447C;
+  --green:#3B6D11;--green-l:#EAF3DE;
+  --amber:#854F0B;--amber-l:#FAEEDA;
+  --red:#A32D2D;--red-l:#FCEBEB;
+  --r:8px;--rl:12px;
+}
+body{font-family:system-ui,-apple-system,sans-serif;color:var(--tx);background:var(--bg3);height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--bg3);display:flex;align-items:center;justify-content:center;z-index:900}
+.lbox{background:var(--bg);border:0.5px solid var(--bd2);border-radius:var(--rl);padding:36px;width:380px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.lerr{background:var(--red-l);color:var(--red);font-size:12px;padding:8px 12px;border-radius:6px;margin-bottom:14px;display:none}
+.lerr.show{display:block}
+
+/* SIDEBAR */
+.sidebar{width:224px;min-width:224px;background:var(--bg);border-right:0.5px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sb-head{padding:14px;border-bottom:0.5px solid var(--bd)}
+.sb-logo{font-size:13px;font-weight:700}
+.sb-sub{font-size:11px;color:var(--tx2);margin-top:2px}
+.sb-user{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:6px}
+.sb-role{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--amber-l);color:var(--amber)}
+.sb-role.admin{background:var(--red-l);color:var(--red)}
+.nav-sec{padding:8px 8px 2px}
+.nav-lbl{font-size:10px;font-weight:500;color:var(--tx3);letter-spacing:.05em;text-transform:uppercase;padding:0 4px;margin-bottom:3px}
+.ni{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--tx2);transition:background .1s;user-select:none}
+.ni:hover{background:var(--bg2);color:var(--tx)}
+.ni.active{background:var(--bg2);color:var(--tx);font-weight:500}
+.ni-badge{margin-left:auto;background:var(--blue);color:#fff;font-size:10px;border-radius:10px;padding:1px 6px}
+.bs-item{font-size:12px;padding:6px 8px;border-radius:5px;cursor:pointer;color:var(--tx2);transition:background .1s}
+.bs-item:hover{background:var(--bg2)}
+.bs-item.active{background:var(--bg2);color:var(--tx);font-weight:500}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:64px;background:var(--bg);border-bottom:0.5px solid var(--bd);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.tb-title{font-size:13px;font-weight:400;color:var(--tx2)}
+.tb-proj{font-size:18px;font-weight:700;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:100%;background:var(--bg3)}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:75%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5}
+.chat-msg.me{align-self:flex-end;background:var(--blue);color:#fff;border-radius:12px 12px 2px 12px}
+.chat-msg.other{align-self:flex-start;background:var(--bg);border:0.5px solid var(--bd);border-radius:12px 12px 12px 2px}
+.chat-msg-meta{font-size:10px;margin-top:4px;opacity:.7}
+.chat-msg-img{max-width:220px;border-radius:8px;margin-top:6px;cursor:pointer}
+.chat-input-bar{padding:12px 16px;background:var(--bg);border-top:0.5px solid var(--bd);display:flex;gap:8px;align-items:flex-end;flex-shrink:0}
+.chat-input{flex:1;padding:9px 12px;font-size:13px;border:0.5px solid var(--bd2);border-radius:20px;background:var(--bg2);color:var(--tx);font-family:inherit;resize:none;max-height:100px;overflow-y:auto}
+.chat-input:focus{outline:none;border-color:var(--blue);background:var(--bg)}
+.sync-ind{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.sync-dot.off{background:var(--amber)}
+
+/* SEARCH */
+.srch-wrap{position:relative}
+.srch-inp{padding:6px 28px 6px 30px;font-size:12px;border:0.5px solid var(--bd2);border-radius:6px;background:var(--bg2);color:var(--tx);font-family:inherit;width:200px;transition:width .2s,border-color .2s}
+.srch-inp:focus{outline:none;border-color:var(--blue);background:var(--bg);width:260px}
+.srch-ico{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--tx3);pointer-events:none}
+.srch-clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--tx3);cursor:pointer;display:none}
+.srch-clr.show{display:block}
+.srch-panel{display:none;position:fixed;top:52px;right:0;width:430px;height:calc(100vh - 52px);background:var(--bg);border-left:0.5px solid var(--bd);z-index:100;flex-direction:column}
+.srch-panel.open{display:flex}
+.srch-head{padding:14px 16px;border-bottom:0.5px solid var(--bd);font-size:13px;font-weight:500;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.srch-body{flex:1;overflow-y:auto;padding:12px}
+.sr-item{padding:10px 12px;border-radius:var(--r);border:0.5px solid var(--bd);margin-bottom:8px}
+.sr-type{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.sr-title{font-size:13px;font-weight:500;margin-bottom:4px}
+.sr-sub{font-size:12px;color:var(--tx2)}
+.sr-hl{background:#FFF3CD;border-radius:2px;padding:0 2px}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:20px}
+.view{display:none}
+.view.active{display:block}
+
+/* BUTTONS */
+.btn{font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;border:0.5px solid var(--bd2);background:var(--bg);color:var(--tx);white-space:nowrap;transition:background .1s;font-family:inherit}
+.btn:hover{background:var(--bg2)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--blue)!important;color:#fff!important;border-color:var(--blue)!important}
+.btn-primary:hover{background:var(--blue-t)!important}
+.btn-danger{background:var(--red-l);color:var(--red);border-color:var(--red-l)}
+.btn-edit{background:var(--blue-l);color:var(--blue);border-color:var(--blue-l)}
+.btn-sm{padding:3px 8px;font-size:11px}
+.btn-grp{display:flex;gap:4px}
+
+/* LAYOUT */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.card{background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--rl);padding:14px 16px}
+.card-title{font-size:12px;color:var(--tx2);margin-bottom:8px;font-weight:500}
+.metric{text-align:center}
+.mv{font-size:26px;font-weight:500}
+.ml{font-size:11px;color:var(--tx2);margin-top:2px}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.st{font-size:14px;font-weight:500}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;font-weight:500;color:var(--tx2);padding:6px 10px;border-bottom:0.5px solid var(--bd)}
+td{padding:8px 10px;border-bottom:0.5px solid var(--bd);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg2)}
+
+/* BADGES */
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+.bg{background:var(--green-l);color:var(--green)}
+.bb{background:var(--blue-l);color:var(--blue)}
+.ba{background:var(--amber-l);color:var(--amber)}
+.br{background:var(--red-l);color:var(--red)}
+.bx{background:var(--bg2);color:var(--tx2)}
+
+/* MISC */
+.pbar{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden}
+.pfill{height:100%;border-radius:3px;background:var(--blue)}
+.av{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:var(--blue-l);color:var(--blue);flex-shrink:0}
+.tl-item{display:flex;gap:10px;padding-bottom:14px}
+.tl-dot{width:10px;height:10px;border-radius:50%;background:var(--blue);margin-top:4px;flex-shrink:0;position:relative}
+.tl-dot::after{content:'';position:absolute;top:10px;left:4px;width:1px;bottom:-14px;background:var(--bd)}
+.tl-item:last-child .tl-dot::after{display:none}
+.photo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.photo-item{border-radius:var(--r);border:0.5px solid var(--bd);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.photo-overlay{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);padding:6px}
+.photo-add{border:2px dashed var(--bd2);border-radius:var(--r);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer}
+.photo-add:hover{background:var(--bg2)}
+
+/* FORMS */
+.fg{margin-bottom:13px}
+.fl{font-size:12px;color:var(--tx2);font-weight:500;margin-bottom:5px;display:block}
+.fi{width:100%;padding:8px 10px;font-size:13px;border:0.5px solid var(--bd2);border-radius:6px;background:var(--bg);color:var(--tx);font-family:inherit}
+.fi:focus{outline:none;border-color:var(--blue)}
+textarea.fi{resize:vertical;min-height:80px}
+select.fi{cursor:pointer}
+.req{color:var(--red)}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--bg);border-radius:var(--rl);padding:22px;width:520px;max-height:90vh;overflow-y:auto;border:0.5px solid var(--bd2)}
+.mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.mt{font-size:15px;font-weight:600}
+.mc{cursor:pointer;font-size:20px;color:var(--tx2);line-height:1;background:none;border:none;font-family:inherit}
+.mf{display:flex;justify-content:flex-end;gap:8px;margin-top:18px;padding-top:14px;border-top:0.5px solid var(--bd)}
+.edit-badge{font-size:11px;color:var(--blue);background:var(--blue-l);padding:2px 8px;border-radius:4px;margin-left:8px}
+.admin-only{display:none}
+.is-admin .admin-only{display:initial}
+
+/* EMPTY / LOADING / NOTIF */
+.empty{text-align:center;padding:48px;color:var(--tx2)}
+.loading{text-align:center;padding:40px;color:var(--tx2)}
+.spin{width:22px;height:22px;border:2px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.notif{position:fixed;bottom:22px;right:22px;background:var(--green-l);color:var(--green);border:0.5px solid var(--green);border-radius:8px;padding:10px 18px;font-size:13px;font-weight:500;z-index:999;transform:translateY(120px);transition:transform .3s}
+.notif.show{transform:translateY(0)}
+.notif.err{background:var(--red-l);color:var(--red);border-color:var(--red)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="lbox">
+    <div style="font-size:32px;margin-bottom:8px">🏗</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px">HKLS Baustellenmanager</div>
+    <div style="font-size:13px;color:var(--tx2);margin-bottom:24px">Klingler Installationen GmbH</div>
+    <div class="lerr" id="lerr"></div>
+    <div class="fg"><label class="fl">E-Mail</label><input class="fi" id="l-email" type="email" placeholder="name@klingler.at" autocomplete="email"></div>
+    <div class="fg"><label class="fl">Passwort</label><input class="fi" id="l-pw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div>
+    <button class="btn btn-primary" style="width:100%;padding:10px;font-size:13px" id="l-btn" onclick="login()">Anmelden</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app" style="display:none">
+  <div class="sidebar">
+    <div class="sb-head">
+      <div class="sb-logo">🏗 HKLS Manager</div>
+      <div class="sb-sub">Klingler Installationen GmbH</div>
+      <div class="sb-user">
+        <span id="sb-email" style="font-size:11px;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <span class="sb-role" id="sb-role">Monteur</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn btn-sm" onclick="logout()" style="flex:1">Abmelden</button>
+      </div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-lbl">Übersicht</div>
+      <div class="ni active" onclick="nav('dashboard',this)">📊 Dashboard</div>
+      <div class="ni" onclick="nav('regie',this)">🧾 Regieberichte <span class="ni-badge" id="rbadge">0</span></div>
+      <div class="ni" onclick="nav('fotos',this)">📷 Fotodokumentation <span class="ni-badge" id="fbadge">0</span></div>
+      <div class="ni" onclick="nav('chat',this)">💬 Baustellenchat</div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-lbl">Dokumentation</div>
+      <div class="ni" onclick="nav('baudok',this)">📁 Mängelliste <span class="ni-badge" id="mbadge">0</span></div>
+      <div class="ni" onclick="nav('aufmass',this)">📐 Aufmaß</div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-lbl">Ressourcen</div>
+      <div class="ni" onclick="nav('mitarbeiter',this)">👷 Mitarbeiter</div>
+      <div class="ni" onclick="nav('material',this)">📦 Material</div>
+      <div class="ni" onclick="nav('maschinen',this)">🔧 Maschinen</div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-lbl">Baustellen</div>
+      <div id="bs-list" style="padding:4px 2px"></div>
+      <div style="padding:4px 2px 8px">
+        <button class="btn" style="width:100%;font-size:12px" onclick="openModal('m-bs')">+ Neue Baustelle</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="tb-proj" id="active-proj">–</div>
+        <div class="tb-title" id="page-title">Dashboard</div>
+      </div>
+      <div class="sync-ind"><div class="sync-dot" id="sdot"></div><span id="slbl">Verbunden</span></div>
+      <div class="srch-wrap">
+        <span class="srch-ico">🔍</span>
+        <input class="srch-inp" id="srch" type="text" placeholder="Suche in allen Belegen…" oninput="doSearch(this.value)" onkeydown="if(event.key==='Escape')clearSearch()">
+        <span class="srch-clr" id="srch-clr" onclick="clearSearch()">✕</span>
+      </div>
+      <button class="btn btn-primary" onclick="openNewRegie()">+ Regiebericht</button>
+    </div>
+
+    <!-- SEARCH PANEL -->
+    <div class="srch-panel" id="srch-panel">
+      <div class="srch-head"><span id="srch-title">Suchergebnisse</span><span style="cursor:pointer;color:var(--tx2)" onclick="clearSearch()">✕ Schließen</span></div>
+      <div class="srch-body" id="srch-body"></div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div class="g4" id="d-metrics"></div>
+        <div class="g2">
+          <div class="card"><div class="card-title">Baufortschritt nach Gewerk</div><div id="d-progress" style="display:flex;flex-direction:column;gap:10px;margin-top:8px"></div></div>
+          <div class="card"><div class="card-title">Letzte Aktivitäten</div><div id="d-timeline" style="margin-top:6px"></div></div>
+        </div>
+        <div class="card"><div class="sh"><div class="st">Offene Mängel</div><button class="btn" onclick="nav('baudok',null)">Alle →</button></div><div id="d-maengel"></div></div>
+      </div>
+
+      <!-- REGIEBERICHTE -->
+      <div class="view" id="view-regie">
+        <div class="sh"><div class="st">Regieberichte</div><button class="btn btn-primary" onclick="openNewRegie()">+ Neuer Regiebericht</button></div>
+        <div id="regie-list"></div>
+      </div>
+
+      <!-- FOTOS -->
+      <div class="view" id="view-fotos">
+        <div class="sh"><div class="st">Fotodokumentation</div><button class="btn btn-primary" onclick="openModal('m-foto')">+ Fotos hinzufügen</button></div>
+        <div class="photo-grid" id="foto-grid"></div>
+      </div>
+
+      <!-- BAUDOK / MAENGEL -->
+      <div class="view" id="view-baudok">
+        <div class="sh"><div class="st">Mängelliste</div><button class="btn btn-primary" onclick="openModal('m-mangel')">+ Mangel melden</button></div>
+        <div id="maengel-list"></div>
+      </div>
+
+      <!-- AUFMASS -->
+      <div class="view" id="view-aufmass">
+        <div class="sh"><div class="st">Aufmaß</div><button class="btn btn-primary" onclick="openModal('m-aufmass')">+ Position erfassen</button></div>
+        <div id="aufmass-list"></div>
+      </div>
+
+      <!-- MITARBEITER -->
+      <div class="view" id="view-mitarbeiter">
+        <div class="sh"><div class="st">Mitarbeiter (<span id="ma-cnt">0</span>)</div><button class="btn btn-primary" onclick="openModal('m-ma')">+ Mitarbeiter</button></div>
+        <div id="ma-list"></div>
+      </div>
+
+      <!-- MATERIAL -->
+      <div class="view" id="view-material">
+        <div class="sh"><div class="st">Materialverwaltung</div><button class="btn btn-primary" onclick="openModal('m-mat')">+ Material</button></div>
+        <div id="mat-list"></div>
+      </div>
+
+      <!-- MASCHINEN -->
+      <div class="view" id="view-maschinen">
+        <div class="sh"><div class="st">Maschinen &amp; Geräte</div><button class="btn btn-primary" onclick="openModal('m-masch')">+ Gerät</button></div>
+        <div id="masch-list"></div>
+      </div>
+
+      <!-- BAUSTELLENCHAT -->
+      <div class="view" id="view-chat" style="padding:0;margin:-20px;height:calc(100vh - 64px)">
+        <div style="display:flex;flex-direction:column;height:100%;background:var(--bg3)">
+          <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px"></div>
+          <div style="padding:12px 16px;background:var(--bg);border-top:0.5px solid var(--bd);display:flex;gap:8px;align-items:flex-end;flex-shrink:0">
+            <label style="cursor:pointer;padding:8px;color:var(--tx2);font-size:20px;line-height:1" title="Foto senden">
+              📷<input type="file" accept="image/*" id="chat-file" style="display:none" onchange="chatSendPhoto(this)">
+            </label>
+            <textarea id="chat-text" placeholder="Nachricht schreiben… (Enter = Senden, Shift+Enter = Zeilenumbruch)"
+              style="flex:1;padding:9px 12px;font-size:13px;border:0.5px solid var(--bd2);border-radius:20px;background:var(--bg2);color:var(--tx);font-family:inherit;resize:none;max-height:100px;overflow-y:auto;line-height:1.4"
+              rows="1"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}"
+              oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+            <button class="btn btn-primary" onclick="chatSend()" style="border-radius:20px;padding:8px 18px;flex-shrink:0">Senden</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- BAUSTELLE -->
+<div class="overlay" id="m-bs">
+  <div class="modal" style="width:460px">
+    <div class="mh"><div class="mt">Neue Baustelle</div><button class="mc" onclick="closeModal('m-bs')">✕</button></div>
+    <div class="fg"><label class="fl">Projektname <span class="req">*</span></label><input class="fi" id="bs-name" placeholder="z.B. Wohnanlage Mayr, Brixen"></div>
+    <div class="fg"><label class="fl">Auftraggeber</label><input class="fi" id="bs-ag" placeholder="Bauherr / Firma"></div>
+    <div class="fg"><label class="fl">Adresse / Ort</label><input class="fi" id="bs-ort" placeholder="Straße, PLZ Ort"></div>
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-bs')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveBaustelle()">Baustelle anlegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- REGIEBERICHT -->
+<div class="overlay" id="m-regie">
+  <div class="modal">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="mt" id="regie-mtitle">Neuer Regiebericht</div>
+        <span class="edit-badge" id="regie-ebadge" style="display:none">Bearbeiten</span>
+      </div>
+      <button class="mc" onclick="closeModal('m-regie')">✕</button>
+    </div>
+
+    <!-- MITARBEITER BLOCK -->
+    <div style="background:var(--blue-l);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--blue-t);margin-bottom:10px">Wer führt die Regietätigkeit aus?</div>
+      <div class="fg" style="margin-bottom:10px">
+        <label class="fl">Mitarbeiter auswählen <span class="req">*</span></label>
+        <select class="fi" id="r-ma-select" onchange="onRegieMaSelect()">
+          <option value="">– Mitarbeiter wählen –</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg" style="margin-bottom:0">
+          <label class="fl">Name (änderbar) <span class="req">*</span></label>
+          <input class="fi" id="r-name" placeholder="Vor- und Nachname">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label class="fl">Funktion <span class="req">*</span></label>
+          <select class="fi" id="r-rolle">
+            <option value="">– bitte wählen –</option>
+            <option>Obermonteur</option>
+            <option>Monteur</option>
+            <option>Helfer</option>
+            <option>Lehrling</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Berichtsnummer</label><input class="fi" id="r-nr" placeholder="automatisch"></div>
+      <div class="fg"><label class="fl">Datum <span class="req">*</span></label><input type="date" class="fi" id="r-datum"></div>
+    </div>
+    <div class="fg"><label class="fl">Auftraggeber</label><input class="fi" id="r-ag" placeholder="Bauherr / Firma"></div>
+    <div class="fg"><label class="fl">Beschreibung der Regietätigkeit <span class="req">*</span></label><textarea class="fi" id="r-text" placeholder="Welche Arbeiten wurden in Regie ausgeführt?"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Gewerk</label><select class="fi" id="r-gw"><option>Heizung</option><option>Lüftung</option><option>Sanitär</option><option>Elektro</option><option>Allgemein</option></select></div>
+      <div class="fg"><label class="fl">Eingesetzte MA</label><input type="number" class="fi" id="r-ma" min="1"></div>
+      <div class="fg"><label class="fl">Gesamtstunden</label><input type="number" class="fi" id="r-std" min="0" step="0.5"></div>
+    </div>
+    <div class="fg"><label class="fl">Status</label><select class="fi" id="r-status"><option>Entwurf</option><option>Freigegeben</option><option>Abgerechnet</option></select></div>
+    <div class="fg"><label class="fl">Verbrauchtes Material</label><textarea class="fi" id="r-mat" style="min-height:60px" placeholder="Art, Menge, Einheit…"></textarea></div>
+    <div class="fg"><label class="fl">Bemerkungen</label><textarea class="fi" id="r-bem" style="min-height:60px"></textarea></div>
+    <input type="hidden" id="r-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-regie')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveRegie()">Regiebericht speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOTO -->
+<div class="overlay" id="m-foto">
+  <div class="modal" style="width:460px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px"><div class="mt" id="foto-mtitle">Foto hinzufügen</div><span class="edit-badge" id="foto-ebadge" style="display:none">Bearbeiten</span></div>
+      <button class="mc" onclick="closeModal('m-foto')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Bereich</label><select class="fi" id="f-bereich"><option>EG</option><option>OG 1</option><option>OG 2</option><option>OG 3</option><option>UG/Keller</option><option>Außenbereich</option></select></div>
+      <div class="fg"><label class="fl">Gewerk</label><select class="fi" id="f-gw"><option>Heizung</option><option>Lüftung</option><option>Sanitär</option><option>Elektro</option><option>Allgemein</option></select></div>
+    </div>
+    <div class="fg"><label class="fl">Kategorie</label><select class="fi" id="f-kat"><option>Fortschritt</option><option>Mangel</option><option>Abnahme</option><option>Druckprobe</option><option>Material</option><option>Sonstiges</option></select></div>
+    <div class="fg"><label class="fl">Beschreibung <span class="req">*</span></label><input class="fi" id="f-desc" placeholder="z.B. Druckprobe FBH OG2"></div>
+    <div class="fg"><label class="fl">Datum</label><input type="date" class="fi" id="f-datum"></div>
+    <div class="fg" id="f-file-wrap"><label class="fl">Foto wählen (optional)</label><input type="file" accept="image/*" class="fi" id="f-file" style="padding:5px"></div>
+    <input type="hidden" id="f-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-foto')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveFoto()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANGEL -->
+<div class="overlay" id="m-mangel">
+  <div class="modal" style="width:460px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px"><div class="mt" id="mangel-mtitle">Mangel melden</div><span class="edit-badge" id="mangel-ebadge" style="display:none">Bearbeiten</span></div>
+      <button class="mc" onclick="closeModal('m-mangel')">✕</button>
+    </div>
+    <div class="fg"><label class="fl">Beschreibung <span class="req">*</span></label><input class="fi" id="m-desc" placeholder="Kurze Beschreibung des Mangels"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Bereich</label><input class="fi" id="m-bereich" placeholder="z.B. WE 12 Bad"></div>
+      <div class="fg"><label class="fl">Gewerk</label><select class="fi" id="m-gw"><option>SN – Sanitär</option><option>HZ – Heizung</option><option>KL – Lüftung</option><option>EL – Elektro</option></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Priorität</label><select class="fi" id="m-prio"><option>Hoch</option><option>Mittel</option><option>Niedrig</option></select></div>
+      <div class="fg"><label class="fl">Status</label><select class="fi" id="m-status"><option>Offen</option><option>In Arbeit</option><option>Erledigt</option></select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Zuständig</label><input class="fi" id="m-zust" placeholder="Name Mitarbeiter"></div>
+      <div class="fg"><label class="fl">Frist</label><input type="date" class="fi" id="m-frist"></div>
+    </div>
+    <input type="hidden" id="m-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-mangel')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveMangel()">Mangel speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUFMASS -->
+<div class="overlay" id="m-aufmass">
+  <div class="modal" style="width:460px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px"><div class="mt" id="aufmass-mtitle">Aufmaß-Position</div><span class="edit-badge" id="aufmass-ebadge" style="display:none">Bearbeiten</span></div>
+      <button class="mc" onclick="closeModal('m-aufmass')">✕</button>
+    </div>
+    <div class="fg"><label class="fl">Position</label><input class="fi" id="am-pos" placeholder="z.B. 1.01"></div>
+    <div class="fg"><label class="fl">Beschreibung <span class="req">*</span></label><input class="fi" id="am-desc" placeholder="z.B. Fußbodenheizungsrohre PE-Xa 17x2"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Einheit</label><select class="fi" id="am-eh"><option>m</option><option>Stk</option><option>m²</option><option>m³</option><option>kg</option></select></div>
+      <div class="fg"><label class="fl">Menge Soll</label><input type="number" class="fi" id="am-soll" min="0"></div>
+      <div class="fg"><label class="fl">Menge Ist</label><input type="number" class="fi" id="am-ist" min="0"></div>
+    </div>
+    <div class="fg"><label class="fl">Gewerk</label><select class="fi" id="am-gw"><option>HZ</option><option>KL</option><option>SN</option><option>EL</option></select></div>
+    <input type="hidden" id="am-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-aufmass')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveAufmass()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MITARBEITER -->
+<div class="overlay" id="m-ma">
+  <div class="modal" style="width:460px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px"><div class="mt" id="ma-mtitle">Mitarbeiter hinzufügen</div><span class="edit-badge" id="ma-ebadge" style="display:none">Bearbeiten</span></div>
+      <button class="mc" onclick="closeModal('m-ma')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Vorname <span class="req">*</span></label><input class="fi" id="ma-vn" placeholder="Max"></div>
+      <div class="fg"><label class="fl">Nachname <span class="req">*</span></label><input class="fi" id="ma-nn" placeholder="Mustermann"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Gewerk</label><select class="fi" id="ma-gw"><option>Heizung</option><option>Lüftung</option><option>Sanitär</option><option>Elektro</option><option>Büro</option></select></div>
+      <div class="fg"><label class="fl">Qualifikation</label><select class="fi" id="ma-quali"><option>Obermonteur</option><option>Monteur</option><option>Helfer</option><option>Lehrling</option><option>Meister</option><option>Büro</option></select></div>
+    </div>
+    <div class="fg"><label class="fl">Aktueller Bereich</label><input class="fi" id="ma-ber" placeholder="z.B. OG 2"></div>
+    <div class="fg"><label class="fl">Anwesend heute</label><select class="fi" id="ma-anw"><option value="true">Ja</option><option value="false">Nein</option></select></div>
+    <input type="hidden" id="ma-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-ma')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveMA()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MATERIAL -->
+<div class="overlay" id="m-mat">
+  <div class="modal" style="width:460px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px"><div class="mt" id="mat-mtitle">Material hinzufügen</div><span class="edit-badge" id="mat-ebadge" style="display:none">Bearbeiten</span></div>
+      <button class="mc" onclick="closeModal('m-mat')">✕</button>
+    </div>
+    <div class="fg"><label class="fl">Artikel <span class="req">*</span></label><input class="fi" id="mat-art" placeholder="z.B. Kupferrohr 15x1"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Einheit</label><select class="fi" id="mat-eh"><option>m</option><option>Stk</option><option>kg</option><option>m²</option></select></div>
+      <div class="fg"><label class="fl">Bestand</label><input type="number" class="fi" id="mat-ist" min="0"></div>
+      <div class="fg"><label class="fl">Mindestbestand</label><input type="number" class="fi" id="mat-min" min="0"></div>
+    </div>
+    <div class="fg"><label class="fl">Lagerort</label><input class="fi" id="mat-lager" placeholder="z.B. Container A"></div>
+    <input type="hidden" id="mat-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-mat')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveMat()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- MASCHINE -->
+<div class="overlay" id="m-masch">
+  <div class="modal" style="width:460px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px"><div class="mt" id="masch-mtitle">Gerät erfassen</div><span class="edit-badge" id="masch-ebadge" style="display:none">Bearbeiten</span></div>
+      <button class="mc" onclick="closeModal('m-masch')">✕</button>
+    </div>
+    <div class="fg"><label class="fl">Gerät <span class="req">*</span></label><input class="fi" id="ms-name" placeholder="z.B. Rohrpressmaschine"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Typ / Modell</label><input class="fi" id="ms-typ" placeholder="z.B. Rems Power-Press"></div>
+      <div class="fg"><label class="fl">Seriennummer</label><input class="fi" id="ms-sn" placeholder="PP-2204"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Standort</label><input class="fi" id="ms-stand" placeholder="z.B. OG 2"></div>
+      <div class="fg"><label class="fl">Nächste Prüfung</label><input type="month" class="fi" id="ms-pruef"></div>
+    </div>
+    <input type="hidden" id="ms-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-masch')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveMasch()">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ===================== CONFIG =====================
+var SUPABASE_URL = 'https://mifrqnfmzuwsxcenuwem.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_AxBHFmXbt6pg81tRPASMCQ_XnZ4kFIX';
+// Admin emails – add more here if needed
+var ADMIN_EMAILS = ['klingler.richard@gmail.com'];
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var state = { activeBs:null, baustellen:[], regie:[], fotos:[], maengel:[], aufmass:[], mitarbeiter:[], material:[], maschinen:[], regieCtr:0 };
+var currentUser = null;
+var isAdmin = false;
+
+// ===================== HELPERS =====================
+function v(id){ return document.getElementById(id); }
+function val(id){ return (v(id)||{value:''}).value; }
+function setVal(id, x){ if(v(id)) v(id).value = x||''; }
+function fmtDate(d){ if(!d)return'–'; try{ return new Date(d+'T00:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return d; } }
+function fmtMonth(m){ if(!m)return'–'; var p=m.split('-'); return p.length===2?p[1]+'/'+p[0]:m; }
+function empty(icon,t,s){ return '<div class="empty"><div style="font-size:36px;margin-bottom:10px">'+icon+'</div><div style="font-size:14px;font-weight:500;margin-bottom:4px">'+t+'</div><div style="font-size:13px;color:var(--tx2)">'+s+'</div></div>'; }
+function loading(){ return '<div class="loading"><div class="spin"></div>Lade Daten…</div>'; }
+function toast(msg, isErr){
+  var n=v('notif'); n.textContent=(isErr?'✕ ':'✓ ')+msg;
+  n.className='notif'+(isErr?' err':'')+' show';
+  clearTimeout(n._t); n._t=setTimeout(function(){ n.classList.remove('show'); }, 3000);
+}
+function selSet(id, val){
+  var el=v(id); if(!el)return;
+  for(var i=0;i<el.options.length;i++){ if(el.options[i].value===val||el.options[i].text===val){ el.selectedIndex=i; break; } }
+}
+
+// ===================== MODALS =====================
+function openModal(id){ v(id).classList.add('open'); }
+function closeModal(id){ v(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(function(o){
+  o.addEventListener('click', function(e){ if(e.target===o) o.classList.remove('open'); });
+});
+
+// ===================== AUTH =====================
+async function login(){
+  var email = val('l-email').trim();
+  var pw = val('l-pw');
+  var btn = v('l-btn'); var err = v('lerr');
+  if(!email||!pw){ err.textContent='Bitte E-Mail und Passwort eingeben.'; err.classList.add('show'); return; }
+  btn.disabled=true; btn.textContent='Anmelden…'; err.classList.remove('show');
+  var res = await sb.auth.signInWithPassword({ email:email, password:pw });
+  btn.disabled=false; btn.textContent='Anmelden';
+  if(res.error){ err.textContent='Fehler: '+res.error.message; err.classList.add('show'); return; }
+  currentUser = res.data.user;
+  startApp();
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  v('login-screen').style.display='flex'; v('app').style.display='none';
+  currentUser=null; isAdmin=false;
+}
+
+async function checkSession(){
+  var res = await sb.auth.getSession();
+  if(res.data && res.data.session){ currentUser=res.data.session.user; startApp(); }
+}
+
+function startApp(){
+  var email = currentUser.email||'';
+  isAdmin = ADMIN_EMAILS.indexOf(email) >= 0;
+  v('login-screen').style.display='none'; v('app').style.display='flex';
+  v('sb-email').textContent = email;
+  v('sb-role').textContent = isAdmin ? 'Administrator' : 'Mitarbeiter';
+  v('sb-role').className = 'sb-role' + (isAdmin?' admin':'');
+  if(isAdmin) document.body.classList.add('is-admin');
+  var today = new Date().toISOString().split('T')[0];
+  ['r-datum','f-datum','m-frist'].forEach(function(id){ var el=v(id); if(el) el.value=today; });
+  loadBaustellen();
+  setupRealtime();
+}
+
+// ===================== REALTIME =====================
+function setupRealtime(){
+  sb.channel('hkls').on('postgres_changes',{event:'*',schema:'public'}, function(){ loadAll(); })
+    .subscribe(function(s){ setSync(s==='SUBSCRIBED'); });
+}
+function setSync(on){ v('sdot').className='sync-dot'+(on?'':' off'); v('slbl').textContent=on?'Verbunden':'Offline'; }
+
+// ===================== BAUSTELLEN =====================
+async function loadBaustellen(){
+  var res = await sb.from('baustellen').select('*').order('created_at');
+  if(res.error){ showSetupSQL(); return; }
+  state.baustellen = res.data||[];
+  if(!state.activeBs && state.baustellen.length>0) state.activeBs = state.baustellen[0].id;
+  renderSidebar();
+  await loadAll();
+}
+
+function renderSidebar(){
+  var list = v('bs-list');
+  list.innerHTML = state.baustellen.map(function(b){
+    return '<div class="bs-item'+(b.id===state.activeBs?' active':'')+'" onclick="switchBs(\''+b.id+'\')">🏗 '+b.name+'</div>';
+  }).join('');
+  var active = state.baustellen.find(function(b){ return b.id===state.activeBs; });
+  v('active-proj').textContent = active ? (active.name+(active.ort?', '+active.ort:'')) : '–';
+}
+
+async function switchBs(id){
+  state.activeBs=id; renderSidebar(); await loadAll(); toast('Baustelle gewechselt');
+}
+
+async function saveBaustelle(){
+  var name = val('bs-name').trim();
+  if(!name){ alert('Projektname ist Pflichtfeld'); return; }
+  var obj = { name:name, ag:val('bs-ag'), ort:val('bs-ort') };
+  var res = await sb.from('baustellen').insert(obj).select().single();
+  if(res.error){ toast('Fehler: '+res.error.message, true); return; }
+  state.baustellen.push(res.data);
+  state.activeBs = res.data.id;
+  closeModal('m-bs');
+  ['bs-name','bs-ag','bs-ort'].forEach(function(id){ setVal(id,''); });
+  renderSidebar(); await loadAll(); toast('Baustelle "'+name+'" angelegt');
+}
+
+// ===================== LOAD ALL =====================
+async function loadAll(){
+  if(!state.activeBs) return;
+  var bs = state.activeBs;
+  var [r,f,m,a,ma,mat,masch] = await Promise.all([
+    sb.from('regie').select('*').eq('bs_id',bs).order('datum',{ascending:false}),
+    sb.from('fotos').select('*').eq('bs_id',bs).order('created_at',{ascending:false}),
+    sb.from('maengel').select('*').eq('bs_id',bs).order('created_at',{ascending:false}),
+    sb.from('aufmass').select('*').eq('bs_id',bs).order('pos'),
+    sb.from('mitarbeiter').select('*').eq('bs_id',bs).order('nn'),
+    sb.from('material').select('*').eq('bs_id',bs).order('art'),
+    sb.from('maschinen').select('*').eq('bs_id',bs).order('name'),
+  ]);
+  state.regie = r.data||[]; state.fotos = f.data||[]; state.maengel = m.data||[];
+  state.aufmass = a.data||[]; state.mitarbeiter = ma.data||[]; state.material = mat.data||[]; state.maschinen = masch.data||[];
+  if(state.regie.length>0){
+    var nums = state.regie.map(function(x){ return parseInt((x.nr||'#0').replace('#',''))||0; });
+    state.regieCtr = Math.max.apply(null, nums);
+  }
+  renderAll();
+}
+
+function renderAll(){
+  renderDashboard(); renderRegie(); renderFotos(); renderMaengel(); renderAufmass(); renderMA(); renderMat(); renderMasch();
+  v('rbadge').textContent = state.regie.length;
+  v('fbadge').textContent = state.fotos.length;
+  v('mbadge').textContent = state.maengel.filter(function(m){ return m.status!=='Erledigt'; }).length;
+}
+
+// ===================== REGIE =====================
+function fillRegieMaDropdown(selectedName){
+  var sel = v('r-ma-select');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">– Mitarbeiter wählen –</option>';
+  state.mitarbeiter.forEach(function(m){
+    var fullName = m.vn+' '+m.nn;
+    var opt = document.createElement('option');
+    opt.value = fullName;
+    opt.textContent = fullName + ' (' + m.quali + ' – ' + m.gw + ')';
+    if(fullName === selectedName) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  // Option for manual entry
+  var opt2 = document.createElement('option');
+  opt2.value = '__manual__';
+  opt2.textContent = '– Name manuell eingeben –';
+  sel.appendChild(opt2);
+}
+
+function onRegieMaSelect(){
+  var chosen = val('r-ma-select');
+  if(chosen === '__manual__'){
+    setVal('r-name','');
+    v('r-name').readOnly = false;
+    v('r-name').focus();
+    // auto-fill rolle from manual MA
+  } else if(chosen){
+    setVal('r-name', chosen);
+    // try to auto-fill rolle from mitarbeiter list
+    var ma = state.mitarbeiter.find(function(m){ return (m.vn+' '+m.nn)===chosen; });
+    if(ma){ selSet('r-rolle', ma.quali); }
+    v('r-name').readOnly = false;
+  }
+}
+
+function openNewRegie(){
+  var today = new Date().toISOString().split('T')[0];
+  setVal('r-id',''); setVal('r-nr',''); setVal('r-datum',today); setVal('r-name',''); setVal('r-ag',''); setVal('r-text',''); setVal('r-ma',''); setVal('r-std',''); setVal('r-mat',''); setVal('r-bem','');
+  v('regie-mtitle').textContent='Neuer Regiebericht'; v('regie-ebadge').style.display='none';
+  selSet('r-ma-select',''); selSet('r-rolle',''); selSet('r-gw','Heizung'); selSet('r-status','Entwurf');
+  fillRegieMaDropdown('');
+  openModal('m-regie');
+}
+
+async function saveRegie(){
+  var name = val('r-name').trim();
+  var rolle = val('r-rolle');
+  var datum = val('r-datum');
+  var text = val('r-text').trim();
+  if(!name){ alert('Name des Mitarbeiters ist Pflichtfeld'); v('r-name').focus(); return; }
+  if(!rolle){ alert('Bitte Funktion (Obermonteur/Monteur/Helfer/Lehrling) auswählen'); v('r-rolle').focus(); return; }
+  if(!datum){ alert('Datum ist Pflichtfeld'); return; }
+  if(!text){ alert('Beschreibung ist Pflichtfeld'); v('r-text').focus(); return; }
+
+  var editId = val('r-id');
+  var obj = {
+    bs_id: state.activeBs, datum:datum,
+    mitarbeiter_name: name, mitarbeiter_rolle: rolle,
+    ag: val('r-ag'), text: text,
+    ma: parseInt(val('r-ma'))||null, std: parseFloat(val('r-std'))||null,
+    gw: val('r-gw'), mat: val('r-mat'), bem: val('r-bem'),
+    status: val('r-status')
+  };
+
+  var error;
+  if(editId){
+    if(!isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+    var res = await sb.from('regie').update(obj).eq('id',editId);
+    error = res.error;
+    if(!error) toast('Regiebericht aktualisiert');
+  } else {
+    state.regieCtr++;
+    obj.nr = val('r-nr').trim() || ('#'+String(state.regieCtr).padStart(3,'0'));
+    var res = await sb.from('regie').insert(obj);
+    error = res.error;
+    if(!error) toast('Regiebericht '+obj.nr+' gespeichert');
+  }
+  if(error){ toast('Fehler: '+error.message, true); return; }
+  closeModal('m-regie'); await loadAll();
+}
+
+function editRegie(id){
+  var r = state.regie.find(function(x){ return x.id===id; }); if(!r) return;
+  setVal('r-id', id); setVal('r-datum', r.datum); setVal('r-nr', r.nr); setVal('r-name', r.mitarbeiter_name);
+  setVal('r-ag', r.ag); setVal('r-text', r.text); setVal('r-ma', r.ma); setVal('r-std', r.std);
+  setVal('r-mat', r.mat); setVal('r-bem', r.bem);
+  fillRegieMaDropdown(r.mitarbeiter_name);
+  selSet('r-rolle', r.mitarbeiter_rolle); selSet('r-gw', r.gw); selSet('r-status', r.status);
+  v('regie-mtitle').textContent='Regiebericht bearbeiten'; v('regie-ebadge').style.display='inline';
+  openModal('m-regie');
+}
+
+function renderRegie(){
+  var el = v('regie-list');
+  if(!state.regie.length){ el.innerHTML=empty('🧾','Noch keine Regieberichte','Erstelle den ersten Regiebericht'); return; }
+  el.innerHTML = '<table><thead><tr><th>Nr.</th><th>Datum</th><th>Mitarbeiter</th><th>Funktion</th><th>Gewerk</th><th>Beschreibung</th><th>MA</th><th>Std</th><th>Status</th><th></th></tr></thead><tbody>'
+    + state.regie.map(function(r){
+      return '<tr>'
+        +'<td><strong>'+(r.nr||'–')+'</strong></td>'
+        +'<td>'+fmtDate(r.datum)+'</td>'
+        +'<td>'+(r.mitarbeiter_name||'–')+'</td>'
+        +'<td><span class="badge bx">'+(r.mitarbeiter_rolle||'–')+'</span></td>'
+        +'<td><span class="badge bb">'+(r.gw||'–')+'</span></td>'
+        +'<td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(r.text||'')+'">'+( r.text||'–')+'</td>'
+        +'<td>'+(r.ma||'–')+'</td>'
+        +'<td>'+(r.std!=null?r.std+' h':'–')+'</td>'
+        +'<td><span class="badge '+(r.status==='Freigegeben'?'bg':r.status==='Entwurf'?'ba':'bb')+'">'+r.status+'</span></td>'
+        +'<td><div class="btn-grp">'
+        +'<button class="btn btn-edit btn-sm" onclick="editRegie(\''+r.id+'\')">✏</button>'
+        +(isAdmin?'<button class="btn btn-danger btn-sm" onclick="delItem(\'regie\',\''+r.id+'\')">✕</button>':'')
+        +'</div></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== FOTOS =====================
+async function saveFoto(){
+  var desc = val('f-desc').trim();
+  if(!desc){ alert('Beschreibung ist Pflichtfeld'); v('f-desc').focus(); return; }
+  var editId = val('f-id');
+  if(editId && !isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var icons = {Fortschritt:'🔧',Mangel:'⚠',Abnahme:'✅',Druckprobe:'💧',Material:'📦',Sonstiges:'📷'};
+  var colors = {Heizung:'#FCEBEB',Lüftung:'#FAEEDA',Sanitär:'#EAF3DE',Elektro:'#E6F1FB',Allgemein:'#EEEDFE'};
+  var gw = val('f-gw'); var kat = val('f-kat');
+  var obj = { bs_id:state.activeBs, bereich:val('f-bereich'), gw:gw, kat:kat, beschreibung:desc, datum:val('f-datum')||null, color:colors[gw]||'#f5f5f3', icon:icons[kat]||'📷' };
+  var fi = v('f-file');
+  var doSave = async function(dataUrl){
+    if(dataUrl) obj.data_url = dataUrl;
+    var error;
+    if(editId){
+      var res = await sb.from('fotos').update(obj).eq('id',editId); error=res.error;
+      if(!error) toast('Foto aktualisiert');
+    } else {
+      var res = await sb.from('fotos').insert(obj); error=res.error;
+      if(!error) toast('Foto gespeichert');
+    }
+    if(error){ toast('Fehler: '+error.message, true); return; }
+    closeModal('m-foto'); setVal('f-desc',''); setVal('f-file',''); await loadAll();
+  };
+  if(fi.files && fi.files[0]){ var reader=new FileReader(); reader.onload=function(e){ doSave(e.target.result); }; reader.readAsDataURL(fi.files[0]); }
+  else doSave(null);
+}
+
+function editFoto(id){
+  if(!isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var f = state.fotos.find(function(x){ return x.id===id; }); if(!f) return;
+  setVal('f-id',id); setVal('f-desc',f.beschreibung); setVal('f-datum',f.datum||'');
+  selSet('f-bereich',f.bereich); selSet('f-gw',f.gw); selSet('f-kat',f.kat);
+  v('foto-mtitle').textContent='Foto bearbeiten'; v('foto-ebadge').style.display='inline';
+  openModal('m-foto');
+}
+
+function renderFotos(){
+  var el = v('foto-grid');
+  var html = state.fotos.map(function(f){
+    var editBtn = isAdmin ? '<button class="btn btn-edit btn-sm" style="font-size:10px;padding:2px 5px" onclick="editFoto(\''+f.id+'\')">✏</button>' : '';
+    var delBtn = isAdmin ? '<button class="btn btn-danger btn-sm" style="font-size:10px;padding:2px 5px" onclick="delItem(\'fotos\',\''+f.id+'\')">✕</button>' : '';
+    return '<div class="photo-item" style="background:'+(f.data_url?'none':f.color)+'">'
+      +(f.data_url?'<img src="'+f.data_url+'" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">':'<div style="font-size:28px;z-index:1">'+f.icon+'</div>')
+      +'<div class="photo-overlay" style="z-index:2"><div style="font-size:10px;color:white;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.beschreibung+'</div><div style="font-size:10px;color:rgba(255,255,255,.7)">'+(f.datum||'')+' · '+(f.bereich||'')+'</div></div>'
+      +(isAdmin?'<div style="position:absolute;top:4px;right:4px;z-index:3;display:flex;gap:3px">'+editBtn+delBtn+'</div>':'')
+      +'</div>';
+  }).join('');
+  html += '<div class="photo-add" onclick="(function(){setVal(\'f-id\',\'\');setVal(\'f-desc\',\'\');setVal(\'f-file\',\'\');v(\'foto-mtitle\').textContent=\'Foto hinzufügen\';v(\'foto-ebadge\').style.display=\'none\';openModal(\'m-foto\');})()"><div style="font-size:24px;color:var(--tx3)">+</div><div style="font-size:11px;color:var(--tx3);margin-top:4px">Foto hinzufügen</div></div>';
+  el.innerHTML = html;
+}
+
+// ===================== MAENGEL =====================
+async function saveMangel(){
+  var desc = val('m-desc').trim();
+  if(!desc){ alert('Beschreibung ist Pflichtfeld'); v('m-desc').focus(); return; }
+  var editId = val('m-id');
+  if(editId && !isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var obj = { bs_id:state.activeBs, beschreibung:desc, bereich:val('m-bereich'), gw:val('m-gw'), prio:val('m-prio'), zust:val('m-zust'), frist:val('m-frist')||null, status:val('m-status') };
+  var error;
+  if(editId){
+    var res = await sb.from('maengel').update(obj).eq('id',editId); error=res.error;
+    if(!error) toast('Mangel aktualisiert');
+  } else {
+    obj.nr = 'M-'+String(state.maengel.length+1).padStart(2,'0');
+    var res = await sb.from('maengel').insert(obj); error=res.error;
+    if(!error) toast('Mangel gemeldet');
+  }
+  if(error){ toast('Fehler: '+error.message, true); return; }
+  closeModal('m-mangel'); await loadAll();
+}
+
+function editMangel(id){
+  if(!isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var m = state.maengel.find(function(x){ return x.id===id; }); if(!m) return;
+  setVal('m-id',id); setVal('m-desc',m.beschreibung); setVal('m-bereich',m.bereich); setVal('m-zust',m.zust); setVal('m-frist',m.frist||'');
+  selSet('m-gw',m.gw); selSet('m-prio',m.prio); selSet('m-status',m.status);
+  v('mangel-mtitle').textContent='Mangel bearbeiten'; v('mangel-ebadge').style.display='inline';
+  openModal('m-mangel');
+}
+
+function renderMaengel(){
+  var el = v('maengel-list');
+  if(!state.maengel.length){ el.innerHTML=empty('✅','Keine Mängel','Alle Mängel wurden behoben'); return; }
+  el.innerHTML = '<table><thead><tr><th>#</th><th>Beschreibung</th><th>Bereich</th><th>Gewerk</th><th>Priorität</th><th>Zuständig</th><th>Frist</th><th>Status</th><th></th></tr></thead><tbody>'
+    + state.maengel.map(function(m){
+      var btns = isAdmin ? '<div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editMangel(\''+m.id+'\')">✏</button><button class="btn btn-danger btn-sm" onclick="delItem(\'maengel\',\''+m.id+'\')">✕</button></div>' : '–';
+      return '<tr><td><strong>'+(m.nr||'–')+'</strong></td><td>'+m.beschreibung+'</td><td>'+m.bereich+'</td><td><span class="badge bx">'+m.gw+'</span></td><td><span class="badge '+(m.prio==='Hoch'?'br':m.prio==='Mittel'?'ba':'bg')+'">'+m.prio+'</span></td><td>'+m.zust+'</td><td>'+(m.frist?fmtDate(m.frist):'–')+'</td><td><span class="badge '+(m.status==='Erledigt'?'bg':m.status==='In Arbeit'?'bb':'ba')+'">'+m.status+'</span></td><td>'+btns+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== AUFMASS =====================
+async function saveAufmass(){
+  var desc = val('am-desc').trim();
+  if(!desc){ alert('Beschreibung ist Pflichtfeld'); return; }
+  var editId = val('am-id');
+  if(editId && !isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var obj = { bs_id:state.activeBs, pos:val('am-pos'), beschreibung:desc, eh:val('am-eh'), soll:parseFloat(val('am-soll'))||0, ist:parseFloat(val('am-ist'))||0, gw:val('am-gw') };
+  var error;
+  if(editId){ var res=await sb.from('aufmass').update(obj).eq('id',editId); error=res.error; if(!error) toast('Aufmaß aktualisiert'); }
+  else { var res=await sb.from('aufmass').insert(obj); error=res.error; if(!error) toast('Aufmaß gespeichert'); }
+  if(error){ toast('Fehler: '+error.message, true); return; }
+  closeModal('m-aufmass'); await loadAll();
+}
+
+function editAufmass(id){
+  if(!isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var a = state.aufmass.find(function(x){ return x.id===id; }); if(!a) return;
+  setVal('am-id',id); setVal('am-pos',a.pos); setVal('am-desc',a.beschreibung); setVal('am-soll',a.soll); setVal('am-ist',a.ist);
+  selSet('am-eh',a.eh); selSet('am-gw',a.gw);
+  v('aufmass-mtitle').textContent='Aufmaß bearbeiten'; v('aufmass-ebadge').style.display='inline';
+  openModal('m-aufmass');
+}
+
+function renderAufmass(){
+  var el = v('aufmass-list');
+  if(!state.aufmass.length){ el.innerHTML=empty('📐','Kein Aufmaß','Erfasse die erste Aufmaß-Position'); return; }
+  el.innerHTML = '<table><thead><tr><th>Pos.</th><th>Beschreibung</th><th>EH</th><th>Soll</th><th>Ist</th><th>GW</th><th>Fortschritt</th><th></th></tr></thead><tbody>'
+    + state.aufmass.map(function(a){
+      var pct = a.soll>0 ? Math.min(100,Math.round(a.ist/a.soll*100)) : 0;
+      var btns = isAdmin ? '<div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editAufmass(\''+a.id+'\')">✏</button><button class="btn btn-danger btn-sm" onclick="delItem(\'aufmass\',\''+a.id+'\')">✕</button></div>' : '–';
+      return '<tr><td>'+a.pos+'</td><td>'+a.beschreibung+'</td><td>'+a.eh+'</td><td>'+Number(a.soll).toLocaleString()+'</td><td>'+Number(a.ist).toLocaleString()+'</td><td><span class="badge bx">'+a.gw+'</span></td>'
+        +'<td><div style="display:flex;align-items:center;gap:8px"><div class="pbar" style="flex:1"><div class="pfill" style="width:'+pct+'%;background:'+(pct>=100?'#3B6D11':pct>=70?'#185FA5':'#854F0B')+'"></div></div><span style="font-size:11px;color:var(--tx2);min-width:30px">'+pct+'%</span></div></td>'
+        +'<td>'+btns+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== MITARBEITER =====================
+async function saveMA(){
+  var vn=val('ma-vn').trim(); var nn=val('ma-nn').trim();
+  if(!vn||!nn){ alert('Vor- und Nachname sind Pflichtfelder'); return; }
+  var editId = val('ma-id');
+  var obj = { bs_id:state.activeBs, vn:vn, nn:nn, gw:val('ma-gw'), quali:val('ma-quali'), ber:val('ma-ber'), anw:val('ma-anw')==='true' };
+  var error;
+  if(editId){ var res=await sb.from('mitarbeiter').update(obj).eq('id',editId); error=res.error; if(!error) toast(vn+' '+nn+' aktualisiert'); }
+  else { var res=await sb.from('mitarbeiter').insert(obj); error=res.error; if(!error) toast(vn+' '+nn+' hinzugefügt'); }
+  if(error){ toast('Fehler: '+error.message, true); return; }
+  closeModal('m-ma'); await loadAll();
+}
+
+function editMA(id){
+  var m = state.mitarbeiter.find(function(x){ return x.id===id; }); if(!m) return;
+  setVal('ma-id',id); setVal('ma-vn',m.vn); setVal('ma-nn',m.nn); setVal('ma-ber',m.ber);
+  selSet('ma-gw',m.gw); selSet('ma-quali',m.quali); v('ma-anw').value=String(m.anw);
+  v('ma-mtitle').textContent='Mitarbeiter bearbeiten'; v('ma-ebadge').style.display='inline';
+  openModal('m-ma');
+}
+
+function renderMA(){
+  var el = v('ma-list'); v('ma-cnt').textContent=state.mitarbeiter.length;
+  if(!state.mitarbeiter.length){ el.innerHTML=empty('👷','Noch kein Mitarbeiter','Füge den ersten Mitarbeiter hinzu'); return; }
+  var gwCol={Heizung:'br',Lüftung:'bb',Sanitär:'bg',Elektro:'ba'};
+  el.innerHTML = '<table><thead><tr><th>Mitarbeiter</th><th>Gewerk</th><th>Qualifikation</th><th>Bereich</th><th>Anwesend</th><th></th></tr></thead><tbody>'
+    + state.mitarbeiter.map(function(m){
+      return '<tr><td><div style="display:flex;align-items:center;gap:8px"><div class="av">'+(m.vn?m.vn[0]:'?')+(m.nn?m.nn[0]:'?')+'</div> '+m.vn+' '+m.nn+'</div></td>'
+        +'<td><span class="badge '+(gwCol[m.gw]||'bx')+'">'+m.gw+'</span></td><td>'+m.quali+'</td>'
+        +'<td style="color:var(--tx2)">'+(m.ber||'–')+'</td>'
+        +'<td><span class="badge '+(m.anw?'bg':'bx')+'">'+(m.anw?'Anwesend':'Abwesend')+'</span></td>'
+        +'<td><div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editMA(\''+m.id+'\')">✏</button>'+(isAdmin?'<button class="btn btn-danger btn-sm" onclick="delItem(\'mitarbeiter\',\''+m.id+'\')">✕</button>':'')+'</div></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== MATERIAL =====================
+async function saveMat(){
+  var art = val('mat-art').trim();
+  if(!art){ alert('Artikel-Bezeichnung fehlt'); return; }
+  var editId = val('mat-id');
+  if(editId && !isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var obj = { bs_id:state.activeBs, art:art, eh:val('mat-eh'), ist:parseFloat(val('mat-ist'))||0, min:parseFloat(val('mat-min'))||0, lager:val('mat-lager') };
+  var error;
+  if(editId){ var res=await sb.from('material').update(obj).eq('id',editId); error=res.error; if(!error) toast('Material aktualisiert'); }
+  else { var res=await sb.from('material').insert(obj); error=res.error; if(!error) toast('Material gespeichert'); }
+  if(error){ toast('Fehler: '+error.message, true); return; }
+  closeModal('m-mat'); await loadAll();
+}
+
+function editMat(id){
+  if(!isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var m = state.material.find(function(x){ return x.id===id; }); if(!m) return;
+  setVal('mat-id',id); setVal('mat-art',m.art); setVal('mat-ist',m.ist); setVal('mat-min',m.min); setVal('mat-lager',m.lager);
+  selSet('mat-eh',m.eh);
+  v('mat-mtitle').textContent='Material bearbeiten'; v('mat-ebadge').style.display='inline';
+  openModal('m-mat');
+}
+
+function renderMat(){
+  var el = v('mat-list');
+  if(!state.material.length){ el.innerHTML=empty('📦','Noch kein Material','Erfasse den ersten Artikel'); return; }
+  el.innerHTML = '<table><thead><tr><th>Artikel</th><th>EH</th><th>Bestand</th><th>Mindestbestand</th><th>Lager</th><th>Status</th><th></th></tr></thead><tbody>'
+    + state.material.map(function(m){
+      var btns = isAdmin ? '<div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editMat(\''+m.id+'\')">✏</button><button class="btn btn-danger btn-sm" onclick="delItem(\'material\',\''+m.id+'\')">✕</button></div>' : '–';
+      return '<tr><td>'+m.art+'</td><td>'+m.eh+'</td><td>'+Number(m.ist).toLocaleString()+'</td><td>'+Number(m.min).toLocaleString()+'</td><td style="color:var(--tx2)">'+(m.lager||'–')+'</td>'
+        +'<td><span class="badge '+(m.ist===0?'br':m.ist<m.min?'ba':'bg')+'">'+(m.ist===0?'Nachbestellen':m.ist<m.min?'Knapp':'OK')+'</span></td><td>'+btns+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== MASCHINEN =====================
+async function saveMasch(){
+  var name = val('ms-name').trim();
+  if(!name){ alert('Gerät-Name fehlt'); return; }
+  var editId = val('ms-id');
+  if(editId && !isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var obj = { bs_id:state.activeBs, name:name, typ:val('ms-typ'), sn:val('ms-sn'), stand:val('ms-stand'), pruef:val('ms-pruef')||null };
+  var error;
+  if(editId){ var res=await sb.from('maschinen').update(obj).eq('id',editId); error=res.error; if(!error) toast('Gerät aktualisiert'); }
+  else { var res=await sb.from('maschinen').insert(obj); error=res.error; if(!error) toast('Gerät erfasst'); }
+  if(error){ toast('Fehler: '+error.message, true); return; }
+  closeModal('m-masch'); await loadAll();
+}
+
+function editMasch(id){
+  if(!isAdmin){ toast('Nur Administratoren können Einträge bearbeiten', true); return; }
+  var m = state.maschinen.find(function(x){ return x.id===id; }); if(!m) return;
+  setVal('ms-id',id); setVal('ms-name',m.name); setVal('ms-typ',m.typ); setVal('ms-sn',m.sn); setVal('ms-stand',m.stand); setVal('ms-pruef',m.pruef||'');
+  v('masch-mtitle').textContent='Gerät bearbeiten'; v('masch-ebadge').style.display='inline';
+  openModal('m-masch');
+}
+
+function renderMasch(){
+  var el = v('masch-list');
+  if(!state.maschinen.length){ el.innerHTML=empty('🔧','Noch kein Gerät','Erfasse das erste Gerät'); return; }
+  var now = new Date();
+  el.innerHTML = '<table><thead><tr><th>Gerät</th><th>Typ/Modell</th><th>Seriennr.</th><th>Standort</th><th>Nächste Prüfung</th><th>Status</th><th></th></tr></thead><tbody>'
+    + state.maschinen.map(function(m){
+      var status='OK',cls='bg';
+      if(m.pruef){ var p=new Date(m.pruef+'-01'); var diff=(p-now)/(1000*60*60*24*30); if(diff<0){status='Überfällig';cls='br';}else if(diff<3){status='Prüfung bald';cls='ba';} }
+      var btns = isAdmin ? '<div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editMasch(\''+m.id+'\')">✏</button><button class="btn btn-danger btn-sm" onclick="delItem(\'maschinen\',\''+m.id+'\')">✕</button></div>' : '–';
+      return '<tr><td>'+m.name+'</td><td>'+(m.typ||'–')+'</td><td style="color:var(--tx2)">'+(m.sn||'–')+'</td><td>'+(m.stand||'–')+'</td><td>'+(m.pruef?fmtMonth(m.pruef):'–')+'</td><td><span class="badge '+cls+'">'+status+'</span></td><td>'+btns+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== DASHBOARD =====================
+function calcFortschritt(){
+  if(!state.aufmass.length) return 0;
+  return Math.round(state.aufmass.reduce(function(s,a){ return s+(a.soll>0?a.ist/a.soll:0); },0)/state.aufmass.length*100);
+}
+
+function renderDashboard(){
+  var ma = state.mitarbeiter.filter(function(x){ return x.anw; });
+  var maengel = state.maengel.filter(function(x){ return x.status!=='Erledigt'; });
+  v('d-metrics').innerHTML = '<div class="card metric"><div class="mv">'+ma.length+'</div><div class="ml">Mitarbeiter heute</div></div>'
+    +'<div class="card metric"><div class="mv" style="color:var(--green)">'+calcFortschritt()+'%</div><div class="ml">Ø Baufortschritt</div></div>'
+    +'<div class="card metric"><div class="mv" style="color:var(--amber)">'+maengel.length+'</div><div class="ml">Offene Mängel</div></div>'
+    +'<div class="card metric"><div class="mv">'+state.fotos.length+'</div><div class="ml">Fotos gesamt</div></div>';
+
+  var gewerke=[{name:'Heizung (HZ)',gw:'HZ',col:'#3B6D11'},{name:'Klima/Lüftung (KL)',gw:'KL',col:'#185FA5'},{name:'Sanitär (SN)',gw:'SN',col:'#854F0B'},{name:'Elektro (EL)',gw:'EL',col:'#A32D2D'}];
+  v('d-progress').innerHTML = gewerke.map(function(g){
+    var items = state.aufmass.filter(function(a){ return a.gw===g.gw; });
+    var pct = items.length ? Math.round(items.reduce(function(s,a){ return s+(a.soll>0?a.ist/a.soll:0); },0)/items.length*100) : 0;
+    return '<div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>'+g.name+'</span><span style="color:var(--tx2)">'+pct+'%</span></div><div class="pbar"><div class="pfill" style="width:'+pct+'%;background:'+g.col+'"></div></div></div>';
+  }).join('');
+
+  var acts = [];
+  state.regie.slice(0,3).forEach(function(r){ acts.push({title:'Regiebericht '+(r.nr||'–')+': '+(r.mitarbeiter_name||'–')+' ('+( r.mitarbeiter_rolle||'–')+')',meta:fmtDate(r.datum)+' · '+r.gw,col:'#185FA5'}); });
+  maengel.slice(0,2).forEach(function(m){ acts.push({title:'Mangel: '+m.beschreibung,meta:m.frist?'Frist: '+fmtDate(m.frist):'',col:'#854F0B'}); });
+  if(!acts.length) acts.push({title:'Noch keine Aktivitäten',meta:'',col:'#9e9e9a'});
+  v('d-timeline').innerHTML = acts.slice(0,5).map(function(a){
+    return '<div class="tl-item"><div class="tl-dot" style="background:'+a.col+'"></div><div><div style="font-size:13px;font-weight:500">'+a.title+'</div><div style="font-size:11px;color:var(--tx2);margin-top:1px">'+a.meta+'</div></div></div>';
+  }).join('');
+
+  var allM = state.maengel.slice(0,5);
+  if(!allM.length){ v('d-maengel').innerHTML='<div style="text-align:center;padding:20px;color:var(--tx2)">Keine Mängel vorhanden</div>'; return; }
+  v('d-maengel').innerHTML = '<table><thead><tr><th>#</th><th>Beschreibung</th><th>Gewerk</th><th>Priorität</th><th>Zuständig</th><th>Status</th><th></th></tr></thead><tbody>'
+    + allM.map(function(m){
+      var editBtn = isAdmin ? '<button class="btn btn-edit btn-sm" onclick="editMangel(\''+m.id+'\')">✏</button>' : '';
+      return '<tr><td>'+(m.nr||'–')+'</td><td>'+m.beschreibung+'</td><td><span class="badge bx">'+m.gw+'</span></td><td><span class="badge '+(m.prio==='Hoch'?'br':m.prio==='Mittel'?'ba':'bg')+'">'+m.prio+'</span></td><td>'+m.zust+'</td><td><span class="badge '+(m.status==='Erledigt'?'bg':m.status==='In Arbeit'?'bb':'ba')+'">'+m.status+'</span></td><td>'+editBtn+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== DELETE =====================
+async function delItem(table, id){
+  if(!isAdmin){ toast('Nur Administratoren können löschen', true); return; }
+  if(!confirm('Eintrag wirklich löschen?')) return;
+  var res = await sb.from(table).delete().eq('id',id);
+  if(res.error){ toast('Fehler: '+res.error.message, true); return; }
+  await loadAll(); toast('Eintrag gelöscht');
+}
+
+// ===================== NAVIGATION =====================
+function nav(id, el){
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
+  var ve = v('view-'+id); if(ve) ve.classList.add('active');
+  if(el) el.classList.add('active');
+  var titles={dashboard:'Dashboard',regie:'Regieberichte',fotos:'Fotodokumentation',baudok:'Mängelliste',aufmass:'Aufmaß',mitarbeiter:'Mitarbeiter',material:'Materialverwaltung',maschinen:'Maschinen & Geräte',chat:'Baustellenchat'};
+  v('page-title').textContent = titles[id]||id;
+  if(id==='chat'){ loadChat(); }
+  else { stopChatPoll(); }
+}
+
+// ===================== SEARCH =====================
+function doSearch(q){
+  q = q.trim();
+  v('srch-clr').className = 'srch-clr'+(q?' show':'');
+  if(!q){ v('srch-panel').classList.remove('open'); return; }
+  v('srch-panel').classList.add('open');
+  var ql = q.toLowerCase();
+  function match(s){ return s && String(s).toLowerCase().indexOf(ql)>=0; }
+  function hl(s){ if(!s)return'–'; var str=String(s); var i=str.toLowerCase().indexOf(ql); if(i<0)return str; return str.slice(0,i)+'<span class="sr-hl">'+str.slice(i,i+q.length)+'</span>'+str.slice(i+q.length); }
+
+  var results = [];
+  state.regie.forEach(function(r){
+    if(match(r.nr)||match(r.text)||match(r.mitarbeiter_name)||match(r.mitarbeiter_rolle)||match(r.gw)||match(r.ag)||match(r.mat)||match(r.bem)){
+      results.push({type:'Regiebericht',icon:'🧾',title:hl(r.nr)+' – '+hl((r.text||'').slice(0,50)),sub:fmtDate(r.datum)+' · '+hl(r.mitarbeiter_name)+' ('+r.mitarbeiter_rolle+')',goFn:'nav(\'regie\',null)',editFn:isAdmin?'editRegie(\''+r.id+'\')':null});
+    }
+  });
+  state.fotos.forEach(function(f){
+    if(match(f.beschreibung)||match(f.bereich)||match(f.kat)){
+      results.push({type:'Foto',icon:'📷',title:hl(f.beschreibung),sub:(f.datum||'')+' · '+(f.bereich||''),goFn:'nav(\'fotos\',null)',editFn:isAdmin?'editFoto(\''+f.id+'\')':null});
+    }
+  });
+  state.maengel.forEach(function(m){
+    if(match(m.beschreibung)||match(m.bereich)||match(m.gw)||match(m.zust)||match(m.nr)){
+      results.push({type:'Mangel',icon:'⚠',title:hl(m.nr||'')+' – '+hl(m.beschreibung),sub:(m.bereich||'')+' · '+m.gw+' · '+m.status,goFn:'nav(\'baudok\',null)',editFn:isAdmin?'editMangel(\''+m.id+'\')':null});
+    }
+  });
+  state.aufmass.forEach(function(a){
+    if(match(a.beschreibung)||match(a.pos)||match(a.gw)){
+      results.push({type:'Aufmaß',icon:'📐',title:hl(a.pos)+' – '+hl(a.beschreibung),sub:a.eh+' | Soll: '+a.soll+' / Ist: '+a.ist,goFn:'nav(\'aufmass\',null)',editFn:isAdmin?'editAufmass(\''+a.id+'\')':null});
+    }
+  });
+  state.mitarbeiter.forEach(function(m){
+    if(match(m.vn)||match(m.nn)||match(m.gw)||match(m.quali)||match(m.ber)){
+      results.push({type:'Mitarbeiter',icon:'👷',title:hl(m.vn)+' '+hl(m.nn),sub:m.gw+' · '+m.quali,goFn:'nav(\'mitarbeiter\',null)',editFn:'editMA(\''+m.id+'\')'});
+    }
+  });
+  state.material.forEach(function(m){
+    if(match(m.art)||match(m.lager)){
+      results.push({type:'Material',icon:'📦',title:hl(m.art),sub:'Bestand: '+m.ist+' '+m.eh+' | '+m.lager,goFn:'nav(\'material\',null)',editFn:isAdmin?'editMat(\''+m.id+'\')':null});
+    }
+  });
+  state.maschinen.forEach(function(m){
+    if(match(m.name)||match(m.typ)||match(m.sn)||match(m.stand)){
+      results.push({type:'Gerät',icon:'🔧',title:hl(m.name),sub:(m.typ||'')+(m.stand?' · '+m.stand:''),goFn:'nav(\'maschinen\',null)',editFn:isAdmin?'editMasch(\''+m.id+'\')':null});
+    }
+  });
+
+  v('srch-title').textContent = results.length+' Ergebnis'+(results.length!==1?'se':'')+' für "'+q+'"';
+  if(!results.length){ v('srch-body').innerHTML='<div class="empty"><div style="font-size:32px;margin-bottom:8px">🔍</div><div style="font-size:14px;font-weight:500">Keine Ergebnisse</div><div style="font-size:13px;color:var(--tx2)">Kein Eintrag für "'+q+'" gefunden</div></div>'; return; }
+  v('srch-body').innerHTML = results.map(function(r){
+    var editBtn = r.editFn ? '<button class="btn btn-edit btn-sm" onclick="clearSearch();'+r.editFn+'">✏ Bearbeiten</button>' : '';
+    return '<div class="sr-item"><div class="sr-type">'+r.icon+' '+r.type+'</div><div class="sr-title">'+r.title+'</div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">'
+      +'<div class="sr-sub">'+r.sub+'</div>'
+      +'<div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px">'+editBtn+'<button class="btn btn-sm" onclick="clearSearch();'+r.goFn+'">→ Anzeigen</button></div>'
+      +'</div></div>';
+  }).join('');
+}
+
+function clearSearch(){ setVal('srch',''); v('srch-clr').className='srch-clr'; v('srch-panel').classList.remove('open'); }
+
+// ===================== SETUP SQL HELPER =====================
+function showSetupSQL(){
+  v('app').style.display='flex'; v('login-screen').style.display='none';
+  document.querySelector('.content').innerHTML = '<div class="card" style="max-width:640px;margin:0 auto">'
+    +'<div style="font-size:15px;font-weight:600;color:var(--red);margin-bottom:12px">⚠ Datenbank einrichten</div>'
+    +'<p style="font-size:13px;color:var(--tx2);margin-bottom:16px;line-height:1.7">Gehe in Supabase → <strong>SQL Editor</strong> → <strong>New query</strong> und führe folgendes SQL aus:</p>'
+    +'<textarea class="fi" style="min-height:260px;font-family:monospace;font-size:11px;line-height:1.5" readonly>'
+    +'create table if not exists baustellen (id uuid primary key default gen_random_uuid(), name text not null, ag text, ort text, start_datum date, end_datum date, created_at timestamptz default now());\n'
+    +'create table if not exists regie (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, nr text, datum date, mitarbeiter_name text, mitarbeiter_rolle text, ag text, text text, ma integer, std numeric, gw text, mat text, bem text, status text default \'Entwurf\', erfasst_von text, created_at timestamptz default now());\n'
+    +'create table if not exists fotos (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, bereich text, gw text, kat text, beschreibung text, datum date, color text, icon text, data_url text, created_at timestamptz default now());\n'
+    +'create table if not exists maengel (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, nr text, beschreibung text, bereich text, gw text, prio text, zust text, frist date, status text default \'Offen\', created_at timestamptz default now());\n'
+    +'create table if not exists aufmass (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, pos text, beschreibung text, eh text, soll numeric, ist numeric, gw text, created_at timestamptz default now());\n'
+    +'create table if not exists mitarbeiter (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, vn text, nn text, gw text, quali text, ber text, anw boolean default true, created_at timestamptz default now());\n'
+    +'create table if not exists material (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, art text, eh text, ist numeric, min numeric, lager text, created_at timestamptz default now());\n'
+    +'create table if not exists maschinen (id uuid primary key default gen_random_uuid(), bs_id uuid references baustellen(id) on delete cascade, name text, typ text, sn text, stand text, pruef text, created_at timestamptz default now());\n'
+    +'alter table baustellen enable row level security;\n'
+    +'alter table regie enable row level security;\n'
+    +'alter table fotos enable row level security;\n'
+    +'alter table maengel enable row level security;\n'
+    +'alter table aufmass enable row level security;\n'
+    +'alter table mitarbeiter enable row level security;\n'
+    +'alter table material enable row level security;\n'
+    +'alter table maschinen enable row level security;\n'
+    +'create policy "allow_all" on baustellen for all using (true) with check (true);\n'
+    +'create policy "allow_all" on regie for all using (true) with check (true);\n'
+    +'create policy "allow_all" on fotos for all using (true) with check (true);\n'
+    +'create policy "allow_all" on maengel for all using (true) with check (true);\n'
+    +'create policy "allow_all" on aufmass for all using (true) with check (true);\n'
+    +'create policy "allow_all" on mitarbeiter for all using (true) with check (true);\n'
+    +'create policy "allow_all" on material for all using (true) with check (true);\n'
+    +'create policy "allow_all" on maschinen for all using (true) with check (true);'
+    +'</textarea>'
+    +'<div style="margin-top:14px;display:flex;gap:10px;align-items:center">'
+    +'<button class="btn btn-primary" onclick="location.reload()">Nach dem Ausführen: Seite neu laden</button>'
+    +'<span style="font-size:12px;color:var(--tx2)">Einmalig nötig – danach nie wieder</span>'
+    +'</div></div>';
+}
+
+// ===================== CHAT =====================
+var chatSub = null;
+var chatPollTimer = null;
+var chatLastCount = 0;
+
+async function loadChat(){
+  if(!state.activeBs){ v('chat-messages').innerHTML='<div style="text-align:center;padding:40px;color:var(--tx2)">Bitte zuerst eine Baustelle auswählen.</div>'; return; }
+  
+  var res = await sb.from('chat').select('*').eq('bs_id',state.activeBs).order('created_at');
+  
+  if(res.error){
+    v('chat-messages').innerHTML = 
+      '<div style="text-align:center;padding:30px;color:var(--tx2)">'
+      +'<div style="font-size:32px;margin-bottom:10px">💬</div>'
+      +'<div style="font-size:14px;font-weight:500;margin-bottom:12px">Chat-Tabelle fehlt noch</div>'
+      +'<div style="font-size:12px;margin-bottom:12px">Führe dieses SQL in Supabase → SQL Editor aus:</div>'
+      +'<div style="background:var(--bg2);border-radius:8px;padding:14px;font-family:monospace;font-size:11px;text-align:left;white-space:pre;overflow-x:auto">'
+      +'create table if not exists chat (\n  id uuid primary key default gen_random_uuid(),\n  bs_id uuid references baustellen(id) on delete cascade,\n  sender text,\n  msg text,\n  img_url text,\n  created_at timestamptz default now()\n);\nalter table chat enable row level security;\ncreate policy "allow_all" on chat for all using (true) with check (true);'
+      +'</div>'
+      +'<button class="btn btn-primary" style="margin-top:14px" onclick="loadChat()">Neu laden</button>'
+      +'</div>';
+    return;
+  }
+  
+  renderChatMsgs(res.data||[]);
+  startChatPoll();
+}
+
+function startChatPoll(){
+  if(chatPollTimer) clearInterval(chatPollTimer);
+  // Poll every 3 seconds for new messages
+  chatPollTimer = setInterval(async function(){
+    if(!state.activeBs) return;
+    var res = await sb.from('chat').select('*').eq('bs_id',state.activeBs).order('created_at');
+    if(!res.error){
+      var msgs = res.data||[];
+      if(msgs.length !== chatLastCount){
+        chatLastCount = msgs.length;
+        renderChatMsgs(msgs);
+      }
+    }
+  }, 3000);
+}
+
+function stopChatPoll(){
+  if(chatPollTimer){ clearInterval(chatPollTimer); chatPollTimer=null; }
+}
+
+function renderChatMsgs(msgs){
+  chatLastCount = msgs.length;
+  var el = v('chat-messages');
+  var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+  
+  if(!msgs.length){
+    el.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--tx2)">'
+      +'<div style="font-size:40px;margin-bottom:12px">💬</div>'
+      +'<div style="font-size:14px;font-weight:500">Noch keine Nachrichten</div>'
+      +'<div style="font-size:12px;margin-top:6px">Schreib die erste Nachricht!</div>'
+      +'</div>';
+    return;
+  }
+  
+  el.innerHTML='';
+  msgs.forEach(function(m){ buildChatBubble(el, m); });
+  if(wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+
+function buildChatBubble(container, m){
+  var me = currentUser && (m.sender===currentUser.email);
+  var senderShort = (m.sender||'Unbekannt').split('@')[0];
+  var time = '';
+  if(m.created_at){
+    try{ time = new Date(m.created_at).toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'}); }catch(e){}
+  }
+  
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:'+(me?'flex-end':'flex-start');
+  
+  var bubble = document.createElement('div');
+  bubble.style.cssText = 'max-width:72%;padding:10px 14px;border-radius:'+(me?'16px 16px 4px 16px':'16px 16px 16px 4px')+';font-size:13px;line-height:1.5;'
+    +(me?'background:var(--blue);color:#fff':'background:var(--bg);border:0.5px solid var(--bd);color:var(--tx)');
+  
+  var html = '';
+  if(!me) html += '<div style="font-size:10px;font-weight:700;margin-bottom:5px;opacity:.75">'+senderShort+'</div>';
+  if(m.msg) html += '<div style="white-space:pre-wrap">'+m.msg.replace(/</g,'&lt;')+'</div>';
+  if(m.img_url) html += '<img src="'+m.img_url+'" style="max-width:200px;border-radius:8px;margin-top:6px;cursor:pointer;display:block" onclick="window.open(this.src)">';
+  html += '<div style="font-size:10px;margin-top:5px;opacity:'+(me?'0.7':'0.5')+'">'+time+'</div>';
+  
+  bubble.innerHTML = html;
+  wrapper.appendChild(bubble);
+  container.appendChild(wrapper);
+}
+
+async function chatSend(){
+  var text = (v('chat-text').value||'').trim();
+  if(!text || !state.activeBs) return;
+  
+  var btn = document.querySelector('#view-chat .btn-primary');
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  
+  setVal('chat-text','');
+  v('chat-text').style.height='auto';
+  
+  var obj = { bs_id:state.activeBs, sender:currentUser?currentUser.email:'Unbekannt', msg:text };
+  var res = await sb.from('chat').insert(obj);
+  
+  if(btn){ btn.disabled=false; btn.textContent='Senden'; }
+  
+  if(res.error){ toast('Fehler beim Senden: '+res.error.message, true); return; }
+  
+  // Immediately reload to show own message
+  var res2 = await sb.from('chat').select('*').eq('bs_id',state.activeBs).order('created_at');
+  if(!res2.error){ renderChatMsgs(res2.data||[]); var el=v('chat-messages'); el.scrollTop=el.scrollHeight; }
+}
+
+async function chatSendPhoto(input){
+  if(!input.files||!input.files[0]||!state.activeBs) return;
+  toast('Foto wird gesendet…');
+  var reader = new FileReader();
+  reader.onload = async function(e){
+    var obj = { bs_id:state.activeBs, sender:currentUser?currentUser.email:'Unbekannt', img_url:e.target.result };
+    var res = await sb.from('chat').insert(obj);
+    input.value='';
+    if(res.error){ toast('Fehler: '+res.error.message, true); return; }
+    var res2 = await sb.from('chat').select('*').eq('bs_id',state.activeBs).order('created_at');
+    if(!res2.error){ renderChatMsgs(res2.data||[]); var el=v('chat-messages'); el.scrollTop=el.scrollHeight; }
+    toast('Foto gesendet');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ===================== INIT =====================
+checkSession();
+</script>
+</body>
+</html>
