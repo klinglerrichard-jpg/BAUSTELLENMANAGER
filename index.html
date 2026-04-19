@@ -2899,10 +2899,10 @@ function renderStammdaten(){
         +'<td style="font-size:11px;color:var(--tx2);max-width:150px">'+bsNames+'</td>'
         +'<td>'+(aufBs
           ?'<span class="badge bg">✓ Zugewiesen</span>'
-          :'<button class="btn btn-primary btn-sm" onclick="assignToBs(''+m.id+'')">+ Zuweisen</button>')+'</td>'
+          :'<button class="btn btn-primary btn-sm" onclick="assignToBs('\''+m.id+'\'')">+ Zuweisen</button>')+'</td>'
         +'<td><div class="btn-grp">'
-        +'<button class="btn btn-edit btn-sm" onclick="editStamm(''+m.id+'')">✏</button>'
-        +'<button class="btn btn-danger btn-sm" onclick="deleteStamm(''+m.id+'')">✕</button>'
+        +'<button class="btn btn-edit btn-sm" onclick="editStamm('\''+m.id+'\'')">✏</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteStamm('\''+m.id+'\'')">✕</button>'
         +'</div></td></tr>';
     }).join('')+'</tbody></table>';
 }
