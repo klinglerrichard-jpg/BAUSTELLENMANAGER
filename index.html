@@ -205,7 +205,6 @@ select.fi{cursor:pointer}
       <div class="ni active" onclick="nav('dashboard',this)">📊 Dashboard</div>
       <div class="ni" onclick="nav('regie',this)">🧾 Regieberichte <span class="ni-badge" id="rbadge">0</span></div>
       <div class="ni" onclick="nav('tagesrapport',this)">⏱ Stundenaufzeichnung <span class="ni-badge" id="trabadge">0</span></div>
-      <div class="ni" onclick="nav('druckprobe',this)">💧 Druckprotokolle <span class="ni-badge" id="dpbadge">0</span></div>
       <div class="ni" onclick="nav('protokolle',this)">📋 Protokolle &amp; Listen <span class="ni-badge" id="prokbadge">0</span></div>
       <div class="ni" onclick="nav('fotos',this)">📷 Fotodokumentation <span class="ni-badge" id="fbadge">0</span></div>
       <div class="ni" onclick="nav('chat',this)">💬 Baustellenchat</div>
@@ -220,10 +219,14 @@ select.fi{cursor:pointer}
 
     <div class="nav-sec">
       <div class="nav-lbl">Ressourcen</div>
-      <div class="ni" onclick="nav('mitarbeiter',this)">👷 Mitarbeiter</div>
       <div class="ni" onclick="nav('material',this)">📦 Material</div>
       <div class="ni" onclick="nav('maschinen',this)">🔧 Maschinen</div>
       <div class="ni" onclick="nav('bestellungen',this)">🛒 Bestellanforderungen <span class="ni-badge" id="bestbadge" style="background:var(--amber)">0</span></div>
+    </div>
+
+    <div class="nav-sec">
+      <div class="nav-lbl">Administration</div>
+      <div class="ni admin-only" onclick="nav('stammdaten',this)">👥 Mitarbeiter-Stammdaten</div>
     </div>
 
     <div class="nav-sec">
@@ -290,6 +293,24 @@ select.fi{cursor:pointer}
             <button class="btn btn-primary" onclick="openNewRapport()">+ Eintrag erfassen</button>
           </div>
         </div>
+
+        <!-- MITARBEITER ROLLUP -->
+        <div class="card" style="margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:600">👷 Mitarbeiter auf dieser Baustelle</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="toggleMaPanel()" id="ma-toggle-btn">▼ Verwalten</button>
+              <button class="btn btn-primary btn-sm" onclick="openModal('m-ma')">+ Mitarbeiter</button>
+            </div>
+          </div>
+          <!-- Schnellstart-Kacheln -->
+          <div id="ma-quick-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px"></div>
+          <!-- Verwaltungs-Panel (aufklappbar) -->
+          <div id="ma-manage-panel" style="display:none;margin-top:12px;border-top:0.5px solid var(--bd);padding-top:12px">
+            <div id="ma-list"></div>
+          </div>
+        </div>
+
         <div class="g4" id="rapport-metrics"></div>
         <div class="card" style="margin-bottom:16px">
           <div class="card-title">Wochenübersicht – Stunden je Mitarbeiter</div>
@@ -313,11 +334,15 @@ select.fi{cursor:pointer}
       <!-- PROTOKOLLE & CHECKLISTEN -->
       <div class="view" id="view-protokolle">
         <div class="sh">
-          <div class="st">Protokolle &amp; Checklisten</div>
-          <button class="btn btn-primary" onclick="openNewProtokoll()">+ Neues Protokoll</button>
+          <div class="st">Protokolle &amp; Listen</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="exportDruckPDF()" style="color:var(--red);border-color:var(--red-l);background:var(--red-l)">📄 Druckprotokolle PDF</button>
+            <button class="btn btn-primary" onclick="openNewProtokoll()">+ Neues Protokoll</button>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="prok-vorlagen"></div>
         <div id="prok-list"></div>
+        <div id="prok-druck-list" style="margin-top:16px"></div>
       </div>
 
       <!-- DOKUMENTE -->
@@ -358,9 +383,29 @@ select.fi{cursor:pointer}
       </div>
 
       <!-- MITARBEITER -->
+      <!-- STAMMDATEN MITARBEITER (Admin only) -->
+      <div class="view" id="view-stammdaten">
+        <div class="sh">
+          <div class="st">👥 Mitarbeiter-Stammdaten</div>
+          <button class="btn btn-primary" onclick="openNewStamm()">+ Mitarbeiter anlegen</button>
+        </div>
+        <div class="card" style="margin-bottom:16px;background:var(--blue-l);border-color:var(--blue-l)">
+          <div style="font-size:13px;color:var(--blue-t)">
+            <strong>Zentrale Verwaltung:</strong> Hier legst du alle Mitarbeiter einmal an. 
+            Danach kannst du sie jeder Baustelle zuweisen — sie erscheinen dann automatisch in den Dropdowns für Regie und Stundenaufzeichnung.
+          </div>
+        </div>
+        <div id="stamm-list"></div>
+      </div>
+
+      <!-- Mitarbeiter ist jetzt in Stundenaufzeichnung integriert -->
       <div class="view" id="view-mitarbeiter">
-        <div class="sh"><div class="st">Mitarbeiter (<span id="ma-cnt">0</span>)</div><button class="btn btn-primary" onclick="openModal('m-ma')">+ Mitarbeiter</button></div>
-        <div id="ma-list"></div>
+        <div style="text-align:center;padding:40px;color:var(--tx2)">
+          <div style="font-size:36px;margin-bottom:12px">👷</div>
+          <div style="font-size:14px;font-weight:500;margin-bottom:8px">Mitarbeiterverwaltung</div>
+          <div style="font-size:13px;margin-bottom:16px">Die Mitarbeiterverwaltung ist jetzt direkt in der Stundenaufzeichnung integriert.</div>
+          <button class="btn btn-primary" onclick="nav('tagesrapport',null)">→ Zur Stundenaufzeichnung</button>
+        </div>
       </div>
 
       <!-- MATERIAL -->
@@ -567,13 +612,68 @@ select.fi{cursor:pointer}
 <!-- BAUSTELLE -->
 <div class="overlay" id="m-bs">
   <div class="modal" style="width:460px">
-    <div class="mh"><div class="mt">Neue Baustelle</div><button class="mc" onclick="closeModal('m-bs')">✕</button></div>
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="mt" id="bs-mtitle">Neue Baustelle</div>
+        <span class="edit-badge" id="bs-ebadge" style="display:none">Bearbeiten</span>
+      </div>
+      <button class="mc" onclick="closeModal('m-bs')">✕</button>
+    </div>
     <div class="fg"><label class="fl">Projektname <span class="req">*</span></label><input class="fi" id="bs-name" placeholder="z.B. Wohnanlage Mayr, Brixen"></div>
     <div class="fg"><label class="fl">Auftraggeber</label><input class="fi" id="bs-ag" placeholder="Bauherr / Firma"></div>
     <div class="fg"><label class="fl">Adresse / Ort</label><input class="fi" id="bs-ort" placeholder="Straße, PLZ Ort"></div>
+    <input type="hidden" id="bs-edit-id">
     <div class="mf">
       <button class="btn" onclick="closeModal('m-bs')">Abbrechen</button>
-      <button class="btn btn-primary" onclick="saveBaustelle()">Baustelle anlegen</button>
+      <button class="btn btn-primary" id="bs-save-btn" onclick="saveBaustelle()">Baustelle anlegen</button>
+    </div>
+  </div>
+</div>
+
+<!-- STAMMDATEN MITARBEITER -->
+<div class="overlay" id="m-stamm">
+  <div class="modal" style="width:520px">
+    <div class="mh">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="mt" id="stamm-mtitle">Mitarbeiter anlegen</div>
+        <span class="edit-badge" id="stamm-ebadge" style="display:none">Bearbeiten</span>
+      </div>
+      <button class="mc" onclick="closeModal('m-stamm')">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Vorname <span class="req">*</span></label><input class="fi" id="st-vn" placeholder="Max"></div>
+      <div class="fg"><label class="fl">Nachname <span class="req">*</span></label><input class="fi" id="st-nn" placeholder="Mustermann"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg"><label class="fl">Gewerk</label>
+        <select class="fi" id="st-gw">
+          <option>Heizung</option><option>Lüftung</option><option>Sanitär</option>
+          <option>Elektro</option><option>Büro</option><option>Allgemein</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Qualifikation</label>
+        <select class="fi" id="st-quali">
+          <option>Obermonteur</option><option>Monteur</option><option>Helfer</option>
+          <option>Lehrling</option><option>Meister</option><option>Büro</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">E-Mail (für Login)</label><input class="fi" id="st-email" type="email" placeholder="vorname.nachname@klinglerteam.at"></div>
+    <div class="fg"><label class="fl">Telefon</label><input class="fi" id="st-tel" placeholder="+43 ..."></div>
+    <div class="fg"><label class="fl">Aktiv</label>
+      <select class="fi" id="st-aktiv">
+        <option value="true">Ja – aktiv</option>
+        <option value="false">Nein – inaktiv</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label class="fl">Baustellen zuweisen</label>
+      <div id="st-bs-checks" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;max-height:150px;overflow-y:auto;border:0.5px solid var(--bd2);border-radius:6px;padding:10px"></div>
+    </div>
+    <input type="hidden" id="st-id">
+    <div class="mf">
+      <button class="btn" onclick="closeModal('m-stamm')">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveStamm()">Speichern</button>
     </div>
   </div>
 </div>
@@ -815,7 +915,7 @@ var ALLE_MITARBEITER = [
 var LOGO_B64 = 'data:image/png;base64,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';
 
 var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-var state = { activeBs:null, baustellen:[], regie:[], fotos:[], maengel:[], aufmass:[], mitarbeiter:[], material:[], maschinen:[], tagesrapport:[], druckprobe:[], protokolle:[], dokumente:[], bestellungen:[], regieCtr:0 };
+var state = { activeBs:null, baustellen:[], regie:[], fotos:[], maengel:[], aufmass:[], mitarbeiter:[], material:[], maschinen:[], tagesrapport:[], druckprobe:[], protokolle:[], dokumente:[], bestellungen:[], stammMitarbeiter:[], regieCtr:0 };
 var currentUser = null;
 var isAdmin = false;
 var isVorarbeiter = false;
@@ -882,6 +982,7 @@ function startApp(){
   var today = new Date().toISOString().split('T')[0];
   ['r-datum','f-datum','m-frist','tra-datum','dp-datum'].forEach(function(id){ var el=v(id); if(el) el.value=today; });
   loadBaustellen();
+  loadStammMitarbeiter();
   setupRealtime();
   setupOffline();
 }
@@ -906,7 +1007,10 @@ async function loadBaustellen(){
 function renderSidebar(){
   var list = v('bs-list');
   list.innerHTML = state.baustellen.map(function(b){
-    return '<div class="bs-item'+(b.id===state.activeBs?' active':'')+'" onclick="switchBs(\''+b.id+'\')">🏗 '+b.name+'</div>';
+    var editBtn = isAdmin
+      ? '<span onclick="event.stopPropagation();editBaustelle(\''+b.id+'\')" style="margin-left:auto;opacity:.5;font-size:11px;padding:1px 4px;border-radius:3px;cursor:pointer" title="Bearbeiten">✏</span>'
+      : '';
+    return '<div class="bs-item'+(b.id===state.activeBs?' active':'')+'" onclick="switchBs(\''+b.id+'\')" style="display:flex;align-items:center">🏗 '+b.name+editBtn+'</div>';
   }).join('');
   var active = state.baustellen.find(function(b){ return b.id===state.activeBs; });
   v('active-proj').textContent = active ? (active.name+(active.ort?', '+active.ort:'')) : '–';
@@ -916,17 +1020,47 @@ async function switchBs(id){
   state.activeBs=id; renderSidebar(); await loadAll(); toast('Baustelle gewechselt');
 }
 
+function editBaustelle(id){
+  if(!isAdmin){ toast('Nur Administratoren können Baustellen bearbeiten', true); return; }
+  var b = state.baustellen.find(function(x){ return x.id===id; }); if(!b) return;
+  setVal('bs-edit-id', id);
+  setVal('bs-name', b.name);
+  setVal('bs-ag', b.ag||'');
+  setVal('bs-ort', b.ort||'');
+  v('bs-mtitle').textContent = 'Baustelle bearbeiten';
+  v('bs-ebadge').style.display = 'inline';
+  v('bs-save-btn').textContent = 'Änderungen speichern';
+  openModal('m-bs');
+}
+
 async function saveBaustelle(){
   var name = val('bs-name').trim();
   if(!name){ alert('Projektname ist Pflichtfeld'); return; }
   var obj = { name:name, ag:val('bs-ag'), ort:val('bs-ort') };
-  var res = await sb.from('baustellen').insert(obj).select().single();
-  if(res.error){ toast('Fehler: '+res.error.message, true); return; }
-  state.baustellen.push(res.data);
-  state.activeBs = res.data.id;
-  closeModal('m-bs');
-  ['bs-name','bs-ag','bs-ort'].forEach(function(id){ setVal(id,''); });
-  renderSidebar(); await loadAll(); toast('Baustelle "'+name+'" angelegt');
+  var editId = val('bs-edit-id');
+  if(editId){
+    // UPDATE existing
+    var res = await sb.from('baustellen').update(obj).eq('id', editId);
+    if(res.error){ toast('Fehler: '+res.error.message, true); return; }
+    var idx = state.baustellen.findIndex(function(b){ return b.id===editId; });
+    if(idx>=0) Object.assign(state.baustellen[idx], obj);
+    closeModal('m-bs');
+    setVal('bs-edit-id','');
+    v('bs-mtitle').textContent='Neue Baustelle';
+    v('bs-ebadge').style.display='none';
+    v('bs-save-btn').textContent='Baustelle anlegen';
+    ['bs-name','bs-ag','bs-ort'].forEach(function(id){ setVal(id,''); });
+    renderSidebar(); await loadAll(); toast('Baustelle "'+name+'" aktualisiert');
+  } else {
+    // INSERT new
+    var res = await sb.from('baustellen').insert(obj).select().single();
+    if(res.error){ toast('Fehler: '+res.error.message, true); return; }
+    state.baustellen.push(res.data);
+    state.activeBs = res.data.id;
+    closeModal('m-bs');
+    ['bs-name','bs-ag','bs-ort'].forEach(function(id){ setVal(id,''); });
+    renderSidebar(); await loadAll(); toast('Baustelle "'+name+'" angelegt');
+  }
 }
 
 // ===================== LOAD ALL =====================
@@ -1240,8 +1374,41 @@ function editMA(id){
 }
 
 function renderMA(){
-  var el = v('ma-list'); v('ma-cnt').textContent=state.mitarbeiter.length;
-  if(!state.mitarbeiter.length){ el.innerHTML=empty('👷','Noch kein Mitarbeiter','Füge den ersten Mitarbeiter hinzu'); return; }
+  var el = v('ma-list');
+  var cntEl = v('ma-cnt'); if(cntEl) cntEl.textContent=state.mitarbeiter.length;
+
+  // Quick-Start Kacheln
+  var qc = v('ma-quick-cards');
+  if(qc){
+    if(!state.mitarbeiter.length){
+      qc.innerHTML='<div style="color:var(--tx2);font-size:12px;padding:8px">Noch keine Mitarbeiter angelegt – klick auf + Mitarbeiter</div>';
+    } else {
+      var gwCol2={Heizung:'br',Lüftung:'bb',Sanitär:'bg',Elektro:'ba'};
+      qc.innerHTML = state.mitarbeiter.map(function(m){
+        var initials=(m.vn?m.vn[0]:'')+''+(m.nn?m.nn[0]:'');
+        return '<div style="background:var(--bg);border:0.5px solid var(--bd);border-radius:var(--r);padding:10px;cursor:pointer;transition:box-shadow .15s" '
+          +'onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.1)\'" onmouseout="this.style.boxShadow=\'none\'" '
+          +'onclick="schnellstartRapport(\''+m.vn+' '+m.nn+'\')" title="Stundeneintrag erfassen">'
+          +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+          +'<div class="av">'+initials+'</div>'
+          +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.vn+' '+m.nn+'</div>'
+          +'<div style="font-size:10px;color:var(--tx2)">'+m.quali+'</div>'
+          +'</div>'
+          +'</div>'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+          +'<span class="badge '+(gwCol2[m.gw]||'bx')+'" style="font-size:10px">'+m.gw+'</span>'
+          +'<span class="badge '+(m.anw?'bg':'bx')+'" style="font-size:10px">'+(m.anw?'Anwesend':'Abwesend')+'</span>'
+          +'</div>'
+          +'<div style="font-size:11px;color:var(--blue);font-weight:500">⏱ Stunden erfassen →</div>'
+          +'</div>';
+      }).join('');
+    }
+  }
+
+  // Verwaltungstabelle (im aufklappbaren Panel)
+  if(!el) return;
+  if(!state.mitarbeiter.length){ el.innerHTML=empty('👷','Noch kein Mitarbeiter','Klick auf + Mitarbeiter'); return; }
   var gwCol={Heizung:'br',Lüftung:'bb',Sanitär:'bg',Elektro:'ba'};
   el.innerHTML = '<table><thead><tr><th>Mitarbeiter</th><th>Gewerk</th><th>Qualifikation</th><th>Bereich</th><th>Anwesend</th><th></th></tr></thead><tbody>'
     + state.mitarbeiter.map(function(m){
@@ -1249,8 +1416,32 @@ function renderMA(){
         +'<td><span class="badge '+(gwCol[m.gw]||'bx')+'">'+m.gw+'</span></td><td>'+m.quali+'</td>'
         +'<td style="color:var(--tx2)">'+(m.ber||'–')+'</td>'
         +'<td><span class="badge '+(m.anw?'bg':'bx')+'">'+(m.anw?'Anwesend':'Abwesend')+'</span></td>'
-        +'<td><div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editMA(\''+m.id+'\')">✏</button>'+(isAdmin?'<button class="btn btn-danger btn-sm" onclick="delItem(\'mitarbeiter\',\''+m.id+'\')">✕</button>':'')+'</div></td></tr>';
+        +'<td><div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editMA(\''+m.id+'\')">✏</button>'
+        +(isAdmin?'<button class="btn btn-danger btn-sm" onclick="delItem(\'mitarbeiter\',\''+m.id+'\')">✕</button>':'')
+        +'</div></td></tr>';
     }).join('')+'</tbody></table>';
+}
+
+function toggleMaPanel(){
+  var panel = v('ma-manage-panel');
+  var btn = v('ma-toggle-btn');
+  if(!panel) return;
+  var open = panel.style.display==='block';
+  panel.style.display = open ? 'none' : 'block';
+  btn.textContent = open ? '▼ Verwalten' : '▲ Schließen';
+}
+
+function schnellstartRapport(name){
+  openNewRapport();
+  // Vorauswahl Mitarbeiter im Dropdown nach kurzem Delay (Dropdown muss erst befüllt sein)
+  setTimeout(function(){
+    var sel = v('tra-ma-select');
+    if(sel){
+      for(var i=0;i<sel.options.length;i++){
+        if(sel.options[i].value===name){ sel.selectedIndex=i; break; }
+      }
+    }
+  }, 100);
 }
 
 // ===================== MATERIAL =====================
@@ -1375,7 +1566,7 @@ function nav(id, el){
   document.querySelectorAll('.ni').forEach(function(n){ n.classList.remove('active'); });
   var ve = v('view-'+id); if(ve) ve.classList.add('active');
   if(el) el.classList.add('active');
-  var titles={dashboard:'Dashboard',regie:'Regieberichte',tagesrapport:'Stundenaufzeichnung',druckprobe:'Druckprotokolle',protokolle:'Protokolle & Checklisten',fotos:'Fotodokumentation',baudok:'Mängelliste',aufmass:'Aufmaß',dokumente:'Pläne & Dokumente',mitarbeiter:'Mitarbeiter',material:'Materialverwaltung',maschinen:'Maschinen & Geräte',bestellungen:'Bestellanforderungen',chat:'Baustellenchat'};
+  var titles={dashboard:'Dashboard',stammdaten:'Mitarbeiter-Stammdaten',regie:'Regieberichte',tagesrapport:'Stundenaufzeichnung',druckprobe:'Druckprotokolle',protokolle:'Protokolle & Listen',fotos:'Fotodokumentation',baudok:'Mängelliste',aufmass:'Aufmaß',dokumente:'Pläne & Dokumente',material:'Materialverwaltung',maschinen:'Maschinen & Geräte',bestellungen:'Bestellanforderungen',chat:'Baustellenchat'};
   v('page-title').textContent = titles[id]||id;
   if(id==='chat'){ loadChat(); }
   else { stopChatPoll(); }
@@ -1414,7 +1605,7 @@ function doSearch(q){
   });
   state.mitarbeiter.forEach(function(m){
     if(match(m.vn)||match(m.nn)||match(m.gw)||match(m.quali)||match(m.ber)){
-      results.push({type:'Mitarbeiter',icon:'👷',title:hl(m.vn)+' '+hl(m.nn),sub:m.gw+' · '+m.quali,goFn:'nav(\'mitarbeiter\',null)',editFn:'editMA(\''+m.id+'\')'});
+      results.push({type:'Mitarbeiter',icon:'👷',title:hl(m.vn)+' '+hl(m.nn),sub:m.gw+' · '+m.quali,goFn:'nav(\'tagesrapport\',null)',editFn:'editMA(\''+m.id+'\')'});
     }
   });
   state.material.forEach(function(m){
@@ -2249,7 +2440,8 @@ var PROTOKOLL_TYPEN = {
   abnahme_sn:'Abnahmeprotokoll Sanitär',
   einregulierung:'Checkliste Einregulierung',
   uebergabe:'Übergabeprotokoll Bauherr',
-  wartung:'Wartungsprotokoll'
+  wartung:'Wartungsprotokoll',
+  druckprobe:'Druckprotokoll'
 };
 
 function renderProtokollFelder(){
@@ -2311,9 +2503,9 @@ function renderProtokolle(){
   // Vorlagen cards
   var vorEl=v('prok-vorlagen'); if(vorEl){
     vorEl.innerHTML=Object.keys(PROTOKOLL_TYPEN).map(function(k){
-      var count=state.protokolle.filter(function(p){return p.typ===k;}).length;
-      var icons={inbetriebnahme_hz:'🔥',abnahme_sn:'🚿',einregulierung:'⚙',uebergabe:'🤝',wartung:'🔧'};
-      return '<div class="card" style="cursor:pointer;border:0.5px solid var(--bd2)" onclick="openNewProtokollTyp(\''+k+'\')">'
+      var count=k==='druckprobe' ? state.druckprobe.length : state.protokolle.filter(function(p){return p.typ===k;}).length;
+      var icons={inbetriebnahme_hz:'🔥',abnahme_sn:'🚿',einregulierung:'⚙',uebergabe:'🤝',wartung:'🔧',druckprobe:'💧'};
+      return '<div class="card" style="cursor:pointer;border:0.5px solid var(--bd2)" onclick="'+( k==="druckprobe" ? "openNewDruck()" : "openNewProtokollTyp(\''+k+'\')")+'">'
         +'<div style="font-size:24px;margin-bottom:8px">'+icons[k]+'</div>'
         +'<div style="font-size:12px;font-weight:500;margin-bottom:4px">'+PROTOKOLL_TYPEN[k]+'</div>'
         +'<div style="font-size:11px;color:var(--tx2)">'+count+' Protokoll'+(count!==1?'e':'')+'</div>'
@@ -2576,6 +2768,141 @@ function renderBestellungen(){
           : '<span class="badge '+sc+'">'+b.status+'</span>')+'</td>'
         +'<td><div class="btn-grp"><button class="btn btn-edit btn-sm" onclick="editBestellung(\''+b.id+'\')">✏</button>'
         +(isAdmin?'<button class="btn btn-danger btn-sm" onclick="delItem(\'bestellungen\',\''+b.id+'\')">✕</button>':'')
+        +'</div></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ===================== STAMMDATEN MITARBEITER =====================
+async function loadStammMitarbeiter(){
+  var res = await sb.from('stamm_mitarbeiter').select('*').order('nn');
+  if(!res.error) state.stammMitarbeiter = res.data||[];
+}
+
+function openNewStamm(){
+  if(!isAdmin){ toast('Nur Administratoren', true); return; }
+  setVal('st-id',''); setVal('st-vn',''); setVal('st-nn',''); setVal('st-email',''); setVal('st-tel','');
+  selSet('st-gw','Heizung'); selSet('st-quali','Monteur'); v('st-aktiv').value='true';
+  v('stamm-mtitle').textContent='Mitarbeiter anlegen'; v('stamm-ebadge').style.display='none';
+  renderStammBsChecks([]);
+  openModal('m-stamm');
+}
+
+function renderStammBsChecks(zugewiesen){
+  var el = v('st-bs-checks'); if(!el) return;
+  el.innerHTML = state.baustellen.map(function(b){
+    var checked = zugewiesen.indexOf(b.id)>=0;
+    return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">'
+      +'<input type="checkbox" value="'+b.id+'" '+(checked?'checked':'')+' style="width:15px;height:15px"> '
+      +'🏗 '+b.name+(b.ort?' · '+b.ort:'')+'</label>';
+  }).join('');
+}
+
+function getStammBsChecked(){
+  var checks = v('st-bs-checks').querySelectorAll('input[type=checkbox]:checked');
+  return Array.from(checks).map(function(cb){ return cb.value; });
+}
+
+async function saveStamm(){
+  if(!isAdmin){ toast('Nur Administratoren', true); return; }
+  var vn=val('st-vn').trim(); var nn=val('st-nn').trim();
+  if(!vn||!nn){ alert('Vor- und Nachname sind Pflichtfelder'); return; }
+  var bsIds = getStammBsChecked();
+  var editId = val('st-id');
+  var obj = { vn:vn, nn:nn, gw:val('st-gw'), quali:val('st-quali'),
+    email:val('st-email')||null, telefon:val('st-tel')||null,
+    aktiv: v('st-aktiv').value==='true', bs_ids: bsIds };
+  var error;
+  if(editId){
+    var res = await sb.from('stamm_mitarbeiter').update(obj).eq('id',editId);
+    error=res.error; if(!error) toast(vn+' '+nn+' aktualisiert');
+  } else {
+    var res = await sb.from('stamm_mitarbeiter').insert(obj);
+    error=res.error; if(!error) toast(vn+' '+nn+' angelegt');
+  }
+  if(error){ toast('Fehler: '+error.message,true); return; }
+
+  // Sync zu baustellenspezifischer mitarbeiter-Tabelle
+  await syncStammToBs(vn, nn, val('st-gw'), val('st-quali'), bsIds, editId);
+  closeModal('m-stamm');
+  await loadStammMitarbeiter();
+  renderStammdaten();
+  await loadAll();
+}
+
+async function syncStammToBs(vn, nn, gw, quali, bsIds, stammId){
+  // Für jede zugewiesene Baustelle: prüfen ob schon vorhanden, sonst eintragen
+  for(var i=0;i<bsIds.length;i++){
+    var bsId = bsIds[i];
+    var existing = await sb.from('mitarbeiter').select('id').eq('bs_id',bsId).eq('vn',vn).eq('nn',nn).single();
+    if(!existing.data){
+      await sb.from('mitarbeiter').insert({bs_id:bsId, vn:vn, nn:nn, gw:gw, quali:quali, anw:true});
+    }
+  }
+}
+
+function editStamm(id){
+  if(!isAdmin){ toast('Nur Administratoren', true); return; }
+  var m = state.stammMitarbeiter.find(function(x){ return x.id===id; }); if(!m) return;
+  setVal('st-id',id); setVal('st-vn',m.vn); setVal('st-nn',m.nn);
+  setVal('st-email',m.email||''); setVal('st-tel',m.telefon||'');
+  selSet('st-gw',m.gw); selSet('st-quali',m.quali);
+  v('st-aktiv').value=String(m.aktiv!==false);
+  v('stamm-mtitle').textContent='Mitarbeiter bearbeiten'; v('stamm-ebadge').style.display='inline';
+  renderStammBsChecks(m.bs_ids||[]);
+  openModal('m-stamm');
+}
+
+async function deleteStamm(id){
+  if(!isAdmin){ toast('Nur Administratoren', true); return; }
+  if(!confirm('Mitarbeiter aus den Stammdaten löschen?')) return;
+  var res = await sb.from('stamm_mitarbeiter').delete().eq('id',id);
+  if(res.error){ toast('Fehler: '+res.error.message,true); return; }
+  await loadStammMitarbeiter(); renderStammdaten(); toast('Mitarbeiter gelöscht');
+}
+
+async function assignToBs(stammId){
+  // Assign Mitarbeiter zu aktiver Baustelle
+  var m = state.stammMitarbeiter.find(function(x){ return x.id===stammId; }); if(!m) return;
+  var existing = await sb.from('mitarbeiter').select('id').eq('bs_id',state.activeBs).eq('vn',m.vn).eq('nn',m.nn).single();
+  if(existing.data){ toast(m.vn+' '+m.nn+' ist bereits auf dieser Baustelle'); return; }
+  var res = await sb.from('mitarbeiter').insert({bs_id:state.activeBs, vn:m.vn, nn:m.nn, gw:m.gw, quali:m.quali, anw:true});
+  if(res.error){ toast('Fehler: '+res.error.message,true); return; }
+  // Update bs_ids in stamm
+  var bsIds = m.bs_ids||[];
+  if(bsIds.indexOf(state.activeBs)<0){ bsIds.push(state.activeBs); await sb.from('stamm_mitarbeiter').update({bs_ids:bsIds}).eq('id',stammId); }
+  await loadStammMitarbeiter(); await loadAll(); toast(m.vn+' '+m.nn+' zur Baustelle hinzugefügt');
+}
+
+function renderStammdaten(){
+  var el = v('stamm-list'); if(!el) return;
+  if(!state.stammMitarbeiter.length){
+    el.innerHTML=empty('👥','Noch keine Mitarbeiter angelegt','Klick auf + Mitarbeiter anlegen'); return;
+  }
+  var gwCol={Heizung:'br',Lüftung:'bb',Sanitär:'bg',Elektro:'ba',Büro:'bx',Allgemein:'bx'};
+  var aktiveMAs = state.mitarbeiter.map(function(m){ return m.vn+' '+m.nn; });
+  el.innerHTML='<table><thead><tr><th>Mitarbeiter</th><th>Gewerk</th><th>Qualifikation</th><th>E-Mail</th><th>Baustellen</th><th>Auf akt. Baustelle</th><th></th></tr></thead><tbody>'
+    +state.stammMitarbeiter.map(function(m){
+      var fullName = m.vn+' '+m.nn;
+      var aufBs = aktiveMAs.indexOf(fullName)>=0;
+      var bsNames = (m.bs_ids||[]).map(function(bid){
+        var b=state.baustellen.find(function(x){return x.id===bid;});
+        return b?b.name:'';
+      }).filter(Boolean).join(', ')||'–';
+      var aktBadge = '<span class="badge '+(m.aktiv!==false?'bg':'bx')+'">'+(m.aktiv!==false?'Aktiv':'Inaktiv')+'</span>';
+      return '<tr>'
+        +'<td><div style="display:flex;align-items:center;gap:8px">'
+        +'<div class="av">'+(m.vn?m.vn[0]:'?')+(m.nn?m.nn[0]:'?')+'</div>'
+        +'<div><div style="font-weight:500">'+fullName+'</div>'+aktBadge+'</div></div></td>'
+        +'<td><span class="badge '+(gwCol[m.gw]||'bx')+'">'+m.gw+'</span></td>'
+        +'<td>'+m.quali+'</td>'
+        +'<td style="font-size:11px;color:var(--tx2)">'+(m.email||'–')+'</td>'
+        +'<td style="font-size:11px;color:var(--tx2);max-width:150px">'+bsNames+'</td>'
+        +'<td>'+(aufBs
+          ?'<span class="badge bg">✓ Zugewiesen</span>'
+          :'<button class="btn btn-primary btn-sm" onclick="assignToBs(''+m.id+'')">+ Zuweisen</button>')+'</td>'
+        +'<td><div class="btn-grp">'
+        +'<button class="btn btn-edit btn-sm" onclick="editStamm(''+m.id+'')">✏</button>'
+        +'<button class="btn btn-danger btn-sm" onclick="deleteStamm(''+m.id+'')">✕</button>'
         +'</div></td></tr>';
     }).join('')+'</tbody></table>';
 }
